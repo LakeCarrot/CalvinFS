@@ -319,6 +319,9 @@ class BlockLogApp : public App {
 
       // Forward "fake multi-replica action" to the head node 
       // [Bo] if the batch message is not sent by the local replica
+      // only the fake actions that in the outside batches may contain the txns
+      // that correlate to this replica, others are just the origin's mastered txns
+      // there is no need for us to tell our local paxos to determine the order
       if (config_->LookupReplica(message_from_) != replica_) {
         ActionBatch fake_action_batch;
         for (int i = 0; i < batch.entries_size(); i++) {
