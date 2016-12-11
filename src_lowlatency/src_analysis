@@ -1,0 +1,76 @@
+btree:
+definition of btree, maybe used in other places.
+
+common:
+definition of some basic functions, not quite related to the overall structure
+
+components:
+This seems the key part of the system, mainly consists of three part.
+-log:
+log.h: define an interface for components log
+local_mem_log.h: in-memory implementation of a components log
+log_app.h: define a distributed logging app, the components of these applications communicate with each other via RPC
+log_source.h: define LogSource, similar to an iterator on the local log
+paxos.h: in essence, the paxos app is just a distributed logging app
+paxos2.h: similar to that of paxos.h
+paxo.cc/paxo2.cc: the standard paxos protocol, it seems that paxo2 is the real paxos, but I didn't dive into that many details.
+
+-scheduler:
+scheduler.h: define an interface for components scheduler
+serial_scheduler.h: take the action request one by one from the action_request set, no concurrency control
+lazy_scheduler.h: didn't get the point, however, it seems that this scheduler use some validation to do the execution
+lock_manager.h: a lock_manager to help implement locking_scheduler.h
+locking_scheduler.h: this scheduler is typically what we learned in class, which manages concurrent control using locking method
+
+-store:
+this part is an important part, as we need to store our mastering information in a particular store
+btreestore.h: same as kvstore interface, however, the main store layer is btree
+kvstore.h: define an interface for key-value store, only define the method, didn't specify underlining storage interface 
+[Note] it seems that we can just use this kvstore to define our master data structure
+leveldbstore.h: same as kvstore interface, however, the main store layer is leveldb
+microbenchmark_store.h/tpcc.h: these are used for evaluatoin I believe
+store.h: define an interface for components store, support GetRWset, run, islocal function
+store_app.h: a distributed store application
+[Note] basically, the app layer takes charge of make a function distributed among different nodes via the help of RPC, while the underlining function is another story.
+versioned_kvstore.h: besides the basic function of kvstore, also introduce versioning to the key value pair
+hybrid_versioned_kvstore.h: use hybrid store method (Btree + LevelDBStore) 
+
+db:
+skip this part, seems not related to our project
+client.h:
+client.cc:
+
+experimental:
+skip this part, seems not related to our project
+
+fs:
+block_log.h: 
+see in file comments by searching [Bo]
+
+machine:
+-app
+app.h: define a distributed application interface
+reporter.h: this is not a complete app, maybe it is used for debugging
+
+-connection
+connection.h: define an interface for handling both internal and external message passing 
+connection_zmq.h: Zero-MQ connection implementation
+
+-thread_pool
+
+-machine_itself
+cluster_config.h: define a class to store all the machines's infomation within the single cluster
+cluster_manager.h: used for create the cluster, and also for maintanence
+machine.h: construct a machine
+
+proto:
+a set of messages that might be used for communication.
+
+scripts:
+
+==========================================================
+important file reading 
+fs/block_log.h
+components/locking_scheduler.h
+
+

@@ -171,6 +171,10 @@ class BlockLogApp : public App {
 
           delay_txns_.erase(batch_cnt_);
         }
+	// [Bo] Till now do the following stuffs
+	// 1) add single replica transcation to the new batch
+	// 2) delay current multiple transcations replica to the delay queue
+	// 3) pop out the previous delay queue
 
         // Avoid multiple allocation.
         string* block = new string();
