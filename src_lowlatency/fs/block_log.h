@@ -173,6 +173,8 @@ class BlockLogApp : public App {
 	// 2) delay current multiple transcations replica to the delay queue, however
 	// add a fake action to the batches 
 	// 3) pop out the previous delay queue
+	// it seems that each replica will only the transcation related to it
+	// either single replica txn or multiple replica txn
 
         // Avoid multiple allocation.
         string* block = new string();
@@ -182,6 +184,7 @@ class BlockLogApp : public App {
         uint64 block_id = machine()->GetGUID() * 2 + (block->size() > 1024 ? 1 : 0);
 
         // Send batch to block stores.
+	// [Bo] send to all replicas
         for (uint64 i = 0; i < config_->config().block_replication_factor();
              i++) {
           Header* header = new Header();
@@ -262,7 +265,7 @@ class BlockLogApp : public App {
       uint64 message_from_ = header->from();
 
       //  If (This batch come from this replica) → send SUBMIT to the Sequencer(LogApp) on the master node of the local paxos participants
-      //  [Bo] note that I will just header information to the local Paxos leader 
+      //  [Bo] note that I will just send header information to the local Paxos leader 
       if (config_->LookupReplica(message_from_) == replica_) {
         Header* header = new Header();
         header->set_from(machine()->machine_id());
