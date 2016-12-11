@@ -234,7 +234,7 @@ class BlockLogApp : public App {
     a->set_origin(replica_);
     queue_.Push(a);
   }
-
+  // [Bo] This is the key part of this file
   virtual void HandleMessage(Header* header, MessageBuffer* message) {
     // Don't run any RPCs before Start() is called.
     while (!going_.load()) {
