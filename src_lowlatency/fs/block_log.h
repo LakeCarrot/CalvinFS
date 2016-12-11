@@ -52,7 +52,6 @@ LOG(ERROR) <<"^^^^^^^^^SequenceSource wrong!!!";
       } else {
         index_ = 0;
         offset_ = current_->misc();
-//LOG(ERROR) <<"^^^^^^^^^SequenceSource get a sequence:"<< offset_ << " block_id is: "<<current_->pairs(0).first();
       }
     }
 
@@ -138,7 +137,6 @@ class BlockLogApp : public App {
         for (int i = 0; i < count; i++) {
           Action* a = NULL;
           queue_.Pop(&a);
-//LOG(ERROR) << "Machine: "<<machine()->machine_id() << " =>Block_log got an action.  distinct_id:"<<a->distinct_id();          
           // Delay multi-replicas action, and add a fake action
           if (a->single_replica() == false && a->new_generated() == false) {
             uint64 active_batch_cnt = batch_cnt_ + delayed_batch_cnt;
@@ -166,14 +164,14 @@ class BlockLogApp : public App {
             a->set_version_offset(actual_offset++);
 	    a->set_origin(replica_);
             batch.mutable_entries()->AddAllocated(a);
-//LOG(ERROR) << "Machine: "<<machine()->machine_id() << " =>Add the old multi-replicas actions into batch.  distinct_id:"<<a->distinct_id();
           }
 
           delay_txns_.erase(batch_cnt_);
         }
 	// [Bo] Till now do the following stuffs
 	// 1) add single replica transcation to the new batch
-	// 2) delay current multiple transcations replica to the delay queue
+	// 2) delay current multiple transcations replica to the delay queue, however
+	// add a fake action to the batches 
 	// 3) pop out the previous delay queue
 
         // Avoid multiple allocation.
@@ -244,24 +242,27 @@ class BlockLogApp : public App {
       }
     }
 
+    // [Bo] if receieve a request from the client
+    // then push the actions list to the waiting queue
     if (header->rpc() == "APPEND") {
       Action* a = new Action();
       a->ParseFromArray((*message)[0].data(), (*message)[0].size());
       a->set_origin(replica_);
       queue_.Push(a);
-//LOG(ERROR) << "Machine: "<<machine()->machine_id() <<" =>Block log recevie a APPEND request. distinct id is:"<< a->distinct_id()<<" from machine:"<<header->from();
     } else if (header->rpc() == "BATCH") {
+      // [Bo] If receive a BATCH of actions 
+   
       // Write batch block to local block store.
       uint64 block_id = header->misc_int(0);
       uint64 batch_size = header->misc_int(1);
       blocks_->Put(block_id, (*message)[0]);
-//LOG(ERROR) << "Machine: "<<machine()->machine_id() << " =>Block log recevie a BATCH request. block id is:"<< block_id <<" from machine:"<<header->from();
       // Parse batch.
       ActionBatch batch;
       batch.ParseFromArray((*message)[0].data(), (*message)[0].size());
       uint64 message_from_ = header->from();
 
       //  If (This batch come from this replica) → send SUBMIT to the Sequencer(LogApp) on the master node of the local paxos participants
+      //  [Bo] note that I will just header information to the local Paxos leader 
       if (config_->LookupReplica(message_from_) == replica_) {
         Header* header = new Header();
         header->set_from(machine()->machine_id());
@@ -279,6 +280,7 @@ class BlockLogApp : public App {
       for (int i = 0; i < batch.entries_size(); i++) {
         set<uint64> recipients;
         
+	// [Bo] if this is fake action, don't push it to the subbatch 
         if (batch.entries(i).fake_action() == true) {
           continue;
         }
@@ -313,13 +315,13 @@ class BlockLogApp : public App {
       }
 
       // Forward "fake multi-replica action" to the head node 
+      // [Bo] if the batch message is not sent by the local replica
       if (config_->LookupReplica(message_from_) != replica_) {
         ActionBatch fake_action_batch;
         for (int i = 0; i < batch.entries_size(); i++) {
           if (batch.entries(i).fake_action() == true) {
             for (int j = 0; j < batch.entries(i).involved_replicas_size(); j++) {
               if (batch.entries(i).involved_replicas(j) == replica_) {
-//LOG(ERROR) << "Machine: "<<machine()->machine_id() << " =>Add the faked multi-replicas actions into batch. block id: "<<block_id<<"  distinct_id: "<<batch.entries(i).distinct_id();
                  fake_action_batch.add_entries()->CopyFrom(batch.entries(i));
                  break;
               }
@@ -336,7 +338,6 @@ class BlockLogApp : public App {
         header->set_rpc("FAKEACTIONBATCH");
         header->add_misc_int(block_id);
         machine()->SendMessage(header, new MessageBuffer(fake_action_batch));
-//LOG(ERROR) << "Machine: "<<machine()->machine_id() << " Send FAKEACTIONBATCH . block id: "<<block_id<<"  size(): "<<fake_action_batch.entries_size();
       }
       
 
