@@ -105,21 +105,22 @@ void Paxos2App::Stop() {
 }
 
 void Paxos2App::HandleOtherMessages(Header* header, MessageBuffer* message) {
+	// [Bo] handle APPEND messages
+	// add to the sequence queue
   if (header->rpc() == "APPEND") {
     Lock l(&mutex_);
     UInt64Pair* p = sequence_.add_pairs();
     p->set_first(header->misc_int(0));
     p->set_second(header->misc_int(1));
     count_ += p->second();
-//LOG(ERROR) << "Machine: "<<machine()->machine_id()<< " ++Paxos2 recevie a Append request. block id is:"<< header->misc_int(0)<<"  count is:"<<header->misc_int(1)<<" from machine:"<<header->from();
-
   } else if (header->rpc() == "NEW-SEQUENCE") {
+	// [Bo] handle NEW-SEQUENCE messeges
+	// it seems that this take charge of the workload that correlated to other replicas
+		PairSequence other_sequence;
+		other_sequence.ParseFromArray((*message)[0].data(), (*message)[0].size());
+		CHECK(other_sequence.pairs_size() != 0);
 
-PairSequence other_sequence;
-other_sequence.ParseFromArray((*message)[0].data(), (*message)[0].size());
-CHECK(other_sequence.pairs_size() != 0);
-
-MessageBuffer* m = new MessageBuffer(other_sequence);
+		MessageBuffer* m = new MessageBuffer(other_sequence);
 
     Scalar s;
     s.ParseFromArray((*message)[1].data(), (*message)[1].size());
@@ -127,9 +128,7 @@ MessageBuffer* m = new MessageBuffer(other_sequence);
     s.ParseFromArray((*message)[2].data(), (*message)[2].size());
     m->Append(s);
     sequences_other_replicas.Push(m);
-//LOG(ERROR) << "Machine: "<<machine()->machine_id()<< " ++Paxos2 recevie a NEW-SEQUENCE  from machine:"<<header->from()<<"  version is:"<<other_sequence.misc();
   } else if (header->rpc() == "NEW-SEQUENCE-ACK") {
-//LOG(ERROR) << "Machine: "<<machine()->machine_id()<< " ++Paxos2 recevie a NEW-SEQUENCE-ACK. from machine:"<<header->from();
     // Send next sequence to the from-replica
     Scalar s;
     s.ParseFromArray((*message)[0].data(), (*message)[0].size());
@@ -143,13 +142,10 @@ MessageBuffer* m = new MessageBuffer(other_sequence);
     pair<uint64, uint64> next_sequence_version;
     bool findnext = local_versions_index_table.Lookup(next_index, &next_sequence_version); 
 
-//LOG(ERROR) << "Machine: "<<machine()->machine_id()<< " ++Paxos2 recevie a NEW-SEQUENCE-ACK(--before find next). from machine:"<<header->from();
     while (findnext == false) {
       usleep(10);
       findnext = local_versions_index_table.Lookup(next_index, &next_sequence_version);
     }
-
-//LOG(ERROR) << "Machine: "<<machine()->machine_id()<< " ++Paxos2 recevie a NEW-SEQUENCE-ACK(--already find next). from machine:"<<header->from()<<". next version is: "<<next_sequence_version.first;
 
     // The number of actions of the current sequence
     uint64 num_actions = next_sequence_version.second;
@@ -172,7 +168,6 @@ MessageBuffer* m = new MessageBuffer(other_sequence);
     m->Append(ToScalar<uint64>(num_actions));
     m->Append(ToScalar<uint32>(machine()->machine_id()));
     machine()->SendMessage(header2, m);
-//LOG(ERROR) << "Machine: "<<machine()->machine_id()<< "=>Paxos2: Send NEW-SEQUENCE(after receive ack) to: "<<from_replica<<" . version: "<<r->Version();
   } else {
     LOG(FATAL) << "unknown message type: " << header->rpc();
   }
@@ -182,6 +177,7 @@ MessageBuffer* m = new MessageBuffer(other_sequence);
 }
 
 void Paxos2App::RunLeader() {
+	// [Bo] This is the main part of this function, need to know how the paxos leader deal with the problem
   uint64 next_version = 1;
   int quorum = static_cast<int>(participants_.size()) / 2 + 1;
   set<atomic<int>*> ack_ptrs;
@@ -209,7 +205,7 @@ void Paxos2App::RunLeader() {
     PairSequence other_sequence;
 
     if (count_.load() != 0) {
-      // Propose a new sequence.
+      // [Bo] Propose a new sequence from current replica
       {
         Lock l(&mutex_);
         version = next_version;
@@ -219,10 +215,9 @@ void Paxos2App::RunLeader() {
         sequence_.SerializeToString(&encoded);
         sequence_.Clear();
         isLocal = true;
-
-//LOG(ERROR) << "Machine: "<<machine()->machine_id()<< "=>Paxos2 proposes a new sequence from local: version:"<< version<< " next_version is: "<<next_version;
       }
     } else if (sequences_other_replicas.Size() != 0) {
+			// [Bo] Propose a new sequence from other replicas
       atomic<int>* ack = new atomic<int>(0);
 
       Header* header = new Header();
@@ -235,19 +230,16 @@ void Paxos2App::RunLeader() {
       n->Append(ToScalar<uint64>(reinterpret_cast<uint64>(ack)));
       machine()->SendMessage(header, n);
 
-//LOG(ERROR) << "Machine: "<<machine()->machine_id()<< "=>Paxos2 is waiting for the ack: version:"<< version<< " next_version is: "<<next_version;
-
-          // Collect Ack.
+      // Collect Ack.
       while (ack->load() < 1) {
         usleep(10);
       }
-
 
       sequences_other_replicas.Pop(&m);
       version = next_version;
 
       other_sequence.ParseFromArray((*m)[0].data(), (*m)[0].size());
-CHECK(other_sequence.pairs_size() != 0);
+			CHECK(other_sequence.pairs_size() != 0);
       other_sequence.set_misc(version);
       other_sequence.SerializeToString(&encoded);
 
@@ -258,12 +250,10 @@ CHECK(other_sequence.pairs_size() != 0);
       s.ParseFromArray((*m)[2].data(), (*m)[2].size());
       from_machine = FromScalar<uint32>(s);
       isLocal = false;
-//LOG(ERROR) << "Machine: "<<machine()->machine_id()<< "=>Paxos2 proposes a new sequence from other replicas: version:"<< other_sequence.misc() << " next_version is: "<<next_version<<". from: "<<from_machine;
     }
 
-
-
-    // Propose a new sequence.
+		// [Bo] 
+    // Propose a new sequence within local replica, namely the leader tell other followers within the same replica
     atomic<int>* acks = new atomic<int>(1);
     ack_ptrs.insert(acks);
     for (uint32 i = 1; i < participants_.size(); i++) {
@@ -297,6 +287,7 @@ CHECK(other_sequence.pairs_size() != 0);
     }
 
     // Actually append the request into the log
+		// [Bo] After leader has already proposed a new sequence, write down to the log 
     log_->Append(version, encoded);
 //LOG(ERROR) << "Machine: "<<machine()->machine_id()<< "=>Paxos2: Actually append the request into the log: version:"<< version;
      
@@ -306,6 +297,7 @@ CHECK(other_sequence.pairs_size() != 0);
     }
    
     if (isLocal == true && isFirst == true) {
+			// [Bo] if this is the first local sequence
       // Send the sequence to the LeaderPaxosApp of all the other replicas;
 
       for (uint64 i = 0; i < replica_count; i++) {
@@ -317,13 +309,13 @@ CHECK(other_sequence.pairs_size() != 0);
           header->set_app(name());
           header->set_rpc("NEW-SEQUENCE");
           m = new MessageBuffer(new string(encoded));
-	  m->Append(ToScalar<uint64>(next_version - version));
+	  			m->Append(ToScalar<uint64>(next_version - version));
           m->Append(ToScalar<uint32>(machine()->machine_id()));
           machine()->SendMessage(header, m);
 
           next_sequences_index.Put(i, 1);
 //LOG(ERROR) << "Machine: "<<machine()->machine_id()<< "=>Paxos2: Send NEW-SEQUENCE to: "<<i*partitions_per_replica;
-	}
+				}
       }
 
       isFirst = false;

@@ -265,7 +265,7 @@ class BlockLogApp : public App {
       uint64 message_from_ = header->from();
 
       //  If (This batch come from this replica) → send SUBMIT to the Sequencer(LogApp) on the master node of the local paxos participants
-      //  [Bo] note that I will just send header information to the local Paxos leader 
+      //  [Bo] note that it will just send header information to the local Paxos leader 
       if (config_->LookupReplica(message_from_) == replica_) {
         Header* header = new Header();
         header->set_from(machine()->machine_id());
@@ -283,7 +283,7 @@ class BlockLogApp : public App {
       for (int i = 0; i < batch.entries_size(); i++) {
         set<uint64> recipients;
         
-	// [Bo] if this is fake action, don't push it to the subbatch 
+	      // [Bo] if this is fake action, don't push it to the subbatch 
         if (batch.entries(i).fake_action() == true) {
           continue;
         }
@@ -348,25 +348,26 @@ class BlockLogApp : public App {
       
 
     } else if (header->rpc() == "SUBMIT") {
+			// [Bo] head node of this replica receive "SUBMIT" messages, need to determine the order of the txns, append the txns id to paxos_leader to determine its global order
 
       uint64 block_id = header->misc_int(0);
 
       uint64 count = header->misc_int(1);
       paxos_leader_->Append(block_id, count);
-//LOG(ERROR) << "Machine: "<<machine()->machine_id()<< "=>Block log recevie a SUBMIT request. block id is:"<< block_id<<" from machine:"<<header->from();
     } else if (header->rpc() == "SUBBATCH") {
+			// [Bo] specific partition receive the action related to its own data, append it for scheduler to read
       uint64 block_id = header->misc_int(0);
       ActionBatch* batch = new ActionBatch();
       batch->ParseFromArray((*message)[0].data(), (*message)[0].size());
       subbatches_.Put(block_id, batch);
-//LOG(ERROR) << "Machine: "<<machine()->machine_id()<< "=>Block log recevie a SUBBATCH request. block id is:"<< block_id<<" from machine:"<<header->from();
     } else if (header->rpc() == "FAKEACTIONBATCH") {
       uint64 block_id = header->misc_int(0);
       ActionBatch* batch = new ActionBatch();
       batch->ParseFromArray((*message)[0].data(), (*message)[0].size());
+			// [Bo] for the replica that related to the specific batch of actions, it need to know the relative order of these actions 
       fakebatches_.Put(block_id, batch);
-//LOG(ERROR) << "Machine: "<<machine()->machine_id()<< "=>Block log Received FAKEACTIONBATCH request.  batch_id:"<<block_id<<"  size is:"<<batch->entries_size();  
     } else if (header->rpc() == "APPEND_MULTIREPLICA_ACTIONS") {
+			// [Bo] this part is for paxos, check paxos.cc and paxos.h, coming back when those two files have been analyzed
       MessageBuffer* m = NULL;
       PairSequence sequence;
 
@@ -386,9 +387,6 @@ class BlockLogApp : public App {
           got_it = fakebatches_.Lookup(subbatch_id_, &subbatch_);
           usleep(10);
         } while (got_it == false);
-
-//LOG(ERROR) << "Machine: "<<machine()->machine_id()<< "=>Block log Received APPEND_MULTIREPLICA_ACTIONS request.  begin batch_id:"<<subbatch_id_<<"  size is:"<<subbatch_->entries_size();
-
         if (subbatch_->entries_size() == 0) {
           continue;
         }
@@ -405,13 +403,11 @@ class BlockLogApp : public App {
           new_action->clear_client_channel();
           new_action->set_new_generated(true);
           queue_.Push(new_action);
-//LOG(ERROR) << "Machine: "<<machine()->machine_id()<< "=>Block log Received APPEND_MULTIREPLICA_ACTIONS request.  append a action:"<<new_action->distinct_id()<<" batch size is:"<<subbatch_->entries_size();   
         }
 
         delete subbatch_;
         subbatch_ = NULL;
         fakebatches_.Erase(subbatch_id_);
-//LOG(ERROR) << "Machine: "<<machine()->machine_id()<< "=>Block log Received APPEND_MULTIREPLICA_ACTIONS request.  finish batch_id:"<<subbatch_id_;   
       }
 
       // Send ack to paxos_leader.
@@ -424,7 +420,6 @@ class BlockLogApp : public App {
       s.ParseFromArray((*message)[0].data(), (*message)[0].size());
       h->set_ack_counter(FromScalar<uint64>(s));
       machine()->SendMessage(h, new MessageBuffer());   
-//LOG(ERROR) << "Machine: "<<machine()->machine_id()<< "=>Block log send back a APPEND_MULTIREPLICA_ACTIONS request.  from machine:"<<header->from();     
 
     } else {
       LOG(FATAL) << "unknown RPC type: " << header->rpc();
