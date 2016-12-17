@@ -59,10 +59,8 @@ void LockingScheduler::MainLoopBody() {
           }
         }
       }
-
 //LOG(ERROR) << "Machine: "<<machine()->machine_id()<<":------------ scheduler after lock: " << action->version()<<" distinct id is:"<<action->distinct_id()<<"  create_new():"<<action->create_new()<<"  LocalReplica is:"<<store_->LocalReplica()<<"   action->origin() is: "<<action->origin()<<"  .action->lowest_involved_machine() is:"<<action->lowest_involved_machine();
     }  else {
-
       // Request write locks. Track requests so we can check that we don't
       // re-request any as read locks.
       set<string> writeset;
@@ -94,6 +92,7 @@ void LockingScheduler::MainLoopBody() {
     if (ungranted_requests == 0) {
 
       running_action_count_++;
+			// [Bo] should dive into this part for detailed action execution information
       store_->RunAsync(action, &completed_);
 //LOG(ERROR) << "Machine: "<<machine()->machine_id()<<":------------ Get Lock immediately: " << action->version()<<" distinct id is:"<<action->distinct_id();
     } 

@@ -261,6 +261,7 @@ Delete	components/store/versioned_kvstore.cc	/^void VersionedKVStore::Delete(con
 DeleteEntry	fs/metadata_store.cc	/^  void DeleteEntry(const string& path) {$/;"	f	class:ExecutionContext
 DeleteMessagePart	machine/connection/connection_zmq.cc	/^void DeleteMessagePart(void *data, void *hint) {$/;"	f
 DeployCluster	machine/cluster_manager.cc	/^void ClusterManager::DeployCluster(double time, int experiment, int clients, int max_active, int max_running, int local_percentage) {$/;"	f	class:ClusterManager
+DirectoryOfThisScript	.ycm_extra_conf.py	/^def DirectoryOfThisScript():$/;"	f
 DistributedBlockStoreApp	fs/block_store.cc	/^DistributedBlockStoreApp::DistributedBlockStoreApp(BlockStore* blocks) {$/;"	f	class:DistributedBlockStoreApp
 DistributedBlockStoreApp	fs/block_store.h	/^class DistributedBlockStoreApp : public BlockStoreApp {$/;"	c
 DistributedExecutionContext	fs/metadata_store.cc	/^  DistributedExecutionContext($/;"	f	class:DistributedExecutionContext
@@ -324,6 +325,7 @@ FilesBelongToSameModule	lint	/^def FilesBelongToSameModule(filename_cc, filename
 FillExperiment	fs/calvinfs_client_app.h	/^  void FillExperiment() {$/;"	f	class:CalvinFSClientApp
 FindNextMultiLineCommentEnd	lint	/^def FindNextMultiLineCommentEnd(lines, lineix):$/;"	f
 FindNextMultiLineCommentStart	lint	/^def FindNextMultiLineCommentStart(lines, lineix):$/;"	f
+FlagsForFile	.ycm_extra_conf.py	/^def FlagsForFile( filename, **kwargs ):$/;"	f
 FloatToString	common/utils.cc	/^string FloatToString(float n) {$/;"	f
 FromFile	machine/cluster_config.cc	/^void ClusterConfig::FromFile(const string& filename) {$/;"	f	class:ClusterConfig
 FromProto	machine/cluster_config.cc	/^void ClusterConfig::FromProto(const ClusterConfigProto& config) {$/;"	f	class:ClusterConfig
@@ -373,6 +375,7 @@ GetActionSource	fs/block_log.h	/^  Source<Action*>* GetActionSource() {$/;"	f	cl
 GetApp	machine/machine.cc	/^App* Machine::GetApp(const string& name) {$/;"	f	class:Machine
 GetApps	machine/machine.cc	/^map<string, App*> Machine::GetApps() {$/;"	f	class:Machine
 GetByte	components/store/versioned_kvstore.cc	/^unsigned char GetByte(uint64 x, uint32 k) {$/;"	f
+GetCompilationInfoForFile	.ycm_extra_conf.py	/^def GetCompilationInfoForFile( filename ):$/;"	f
 GetConfig	machine/cluster_manager.cc	/^const ClusterConfig& ClusterManager::GetConfig() {$/;"	f	class:ClusterManager
 GetEntry	fs/metadata_store.cc	/^  bool GetEntry(const string& path, MetadataEntry* entry) {$/;"	f	class:ExecutionContext
 GetFinshTime	machine/thread_pool/thread_pool_test.cc	/^  double GetFinshTime(int index) {$/;"	f	class:TestLatencyHandler
@@ -481,6 +484,7 @@ IntToString	common/utils.h	/^inline string IntToString(int n) { return Int32ToSt
 IsBlankLine	lint	/^def IsBlankLine(line):$/;"	f
 IsCppString	lint	/^def IsCppString(line):$/;"	f
 IsErrorSuppressedByNolint	lint	/^def IsErrorSuppressedByNolint(category, linenum):$/;"	f
+IsHeaderFile	.ycm_extra_conf.py	/^def IsHeaderFile( filename ):$/;"	f
 IsInAlphabeticalOrder	lint	/^  def IsInAlphabeticalOrder(self, header_path):$/;"	m	class:_IncludeState
 IsLeader	components/log/paxos2.cc	/^bool Paxos2App::IsLeader() {$/;"	f	class:Paxos2App
 IsLocal	components/store/btreestore.cc	/^bool BTreeStore::IsLocal(const string& path) {$/;"	f	class:BTreeStore
@@ -609,11 +613,13 @@ Machine	machine/machine.cc	/^Machine::Machine()$/;"	f	class:Machine
 Machine	machine/machine.cc	/^Machine::Machine(uint64 machine_id, const ClusterConfig& config)$/;"	f	class:Machine
 Machine	machine/machine.h	/^class Machine {$/;"	c
 MainLoopBody	components/scheduler/locking_scheduler.cc	/^void LockingScheduler::MainLoopBody() {$/;"	f	class:LockingScheduler
+MainLoopBody	components/scheduler/locking_scheduler_remaster.cc	/^void LockingScheduler::MainLoopBody() {$/;"	f	class:LockingScheduler
 MainLoopBody	components/scheduler/serial_scheduler.h	/^  virtual void MainLoopBody() {$/;"	f	class:SerialScheduler
 MainLoopBody	components/scheduler/vll_scheduler.cc	/^void VLLScheduler::MainLoopBody() {$/;"	f	class:VLLScheduler
 MakeCalvinFSConfig	fs/calvinfs.cc	/^CalvinFSConfig MakeCalvinFSConfig() {$/;"	f
 MakeCalvinFSConfig	fs/calvinfs.cc	/^CalvinFSConfig MakeCalvinFSConfig(int n) {$/;"	f
 MakeCalvinFSConfig	fs/calvinfs.cc	/^CalvinFSConfig MakeCalvinFSConfig(int n, int r) {$/;"	f
+MakeRelativePathsInFlagsAbsolute	.ycm_extra_conf.py	/^def MakeRelativePathsInFlagsAbsolute( flags, working_directory ):$/;"	f
 MapTest	btree/btree_test.cc	/^void MapTest() {$/;"	f	namespace:btree::__anon12
 MapTest	btree/safe_btree_test.cc	/^void MapTest() {$/;"	f	namespace:btree::__anon13
 Match	lint	/^def Match(pattern, s):$/;"	f
@@ -751,6 +757,7 @@ REGISTER_APP	components/log/paxos2.cc	/^REGISTER_APP(Paxos2App) {$/;"	f
 REGISTER_APP	components/log/paxos2.cc	/^REGISTER_APP(Paxos2App2) {$/;"	f
 REGISTER_APP	components/scheduler/lazy_scheduler.cc	/^REGISTER_APP(LazyScheduler) {$/;"	f
 REGISTER_APP	components/scheduler/locking_scheduler.cc	/^REGISTER_APP(LockingScheduler) {$/;"	f
+REGISTER_APP	components/scheduler/locking_scheduler_remaster.cc	/^REGISTER_APP(LockingScheduler) {$/;"	f
 REGISTER_APP	components/scheduler/serial_scheduler.cc	/^REGISTER_APP(SerialScheduler) {$/;"	f
 REGISTER_APP	components/scheduler/vll_scheduler.cc	/^REGISTER_APP(VLLScheduler) {$/;"	f
 REGISTER_APP	components/store/btreestore.cc	/^REGISTER_APP(BTreeStoreApp) {$/;"	f
@@ -854,6 +861,7 @@ RunThread	machine/thread_pool/thread_pool.cc	/^void* SubPool::RunThread(void* ar
 SAState	machine/app/app.h	/^struct SAState {$/;"	s
 SCHEDULER_TEST	components/scheduler/scheduler_test.cc	/^#define SCHEDULER_TEST(/;"	d	file:
 SHARED	components/scheduler/lock_manager.h	/^    SHARED = 0,$/;"	e	enum:LockManager::LockMode
+SOURCE_EXTENSIONS	.ycm_extra_conf.py	/^SOURCE_EXTENSIONS = [ '.C', '.cpp', '.cxx', '.cc', '.c', '.m', '.mm' ]$/;"	v
 SPECIALIZED_CONSTRUCTOR	components/log/log_app.cc	/^#define SPECIALIZED_CONSTRUCTOR(/;"	d	file:
 SRCDIR	Makefile	/^SRCDIR := ..\/src_lowlatency$/;"	m
 SafeVersion	components/scheduler/locking_scheduler.h	/^  virtual uint64 SafeVersion() {$/;"	f	class:LockingScheduler
@@ -1440,6 +1448,7 @@ close	machine/connection/zmq_cpp.h	/^        inline void close()$/;"	f	class:zmq
 codecs	lint	/^import codecs$/;"	i
 comp	btree/btree.h	/^  Compare comp;$/;"	m	struct:btree::btree_key_comparer
 compare_keys	btree/btree.h	/^  bool compare_keys(const key_type &x, const key_type &y) const {$/;"	f	class:btree::btree
+compilation_database_folder	.ycm_extra_conf.py	/^compilation_database_folder = ''$/;"	v
 completed	machine/thread_pool/thread_pool_test.cc	/^  const set<string>& completed() { return completed_; }$/;"	f	class:TestMessageHandler
 completed_	components/scheduler/locking_scheduler.h	/^  AtomicQueue<Action*> completed_;$/;"	m	class:LockingScheduler
 completed_	components/scheduler/vll_scheduler.h	/^  AtomicQueue<Action*> completed_;$/;"	m	class:VLLScheduler
@@ -1536,6 +1545,8 @@ data_type	btree/btree.h	/^  typedef typename Params::data_type data_type;$/;"	t	
 data_type	btree/btree_container.h	/^  typedef typename Tree::data_type data_type;$/;"	t	class:btree::btree_map_container
 data_type	btree/btree_map.h	/^  typedef typename btree_type::data_type data_type;$/;"	t	class:btree::btree_multimap
 data_type	btree/safe_btree.h	/^  typedef typename btree_type::data_type data_type;$/;"	t	class:btree::safe_btree
+database	.ycm_extra_conf.py	/^  database = None$/;"	v
+database	.ycm_extra_conf.py	/^  database = ycm_core.CompilationDatabase( compilation_database_folder )$/;"	v
 dead_	experimental/dag/appender.h	/^	std::atomic<bool> dead_; $/;"	m	class:Appender
 deallocate	btree/btree_test.h	/^  void deallocate(pointer p, size_type n) {$/;"	f	class:btree::TestAllocator
 decrement	btree/btree.h	/^  void decrement() {$/;"	f	struct:btree::btree_iterator
@@ -1636,6 +1647,7 @@ find_unique	btree/safe_btree.h	/^  const_iterator find_unique(const key_type &ke
 find_unique	btree/safe_btree.h	/^  iterator find_unique(const key_type &key) {$/;"	f	class:btree::safe_btree
 finsh_	machine/thread_pool/thread_pool_test.cc	/^  vector<double> finsh_;$/;"	m	class:TestLatencyHandler	file:
 first_benchmark	btree/btree_bench.cc	/^BenchmarkRun *first_benchmark;$/;"	m	namespace:btree::__anon11	file:
+flags	.ycm_extra_conf.py	/^flags = [$/;"	v
 for	lint	/^import math  # for log$/;"	i
 free_fn	machine/connection/zmq_cpp.h	/^    typedef zmq_free_fn free_fn;$/;"	t	namespace:zmq
 front_	common/atomic.h	/^  uint32 front_;     \/\/ Offset of first (oldest) element.$/;"	m	class:AtomicQueue
@@ -2107,6 +2119,7 @@ operator void*	machine/connection/zmq_cpp.h	/^        inline operator void* ()$/
 operator |	common/vec.h	/^  inline Vec& operator | (T t) {$/;"	f	class:Vec
 operator ||	common/vec.h	/^  inline vector<T> operator||(T t) {$/;"	f	class:Vec
 origin_	fs/metadata_store.cc	/^  uint32 origin_;$/;"	m	class:DistributedExecutionContext	file:
+os	.ycm_extra_conf.py	/^import os$/;"	i
 os	lint	/^import os$/;"	i
 other	btree/btree_test.h	/^    typedef TestAllocator<U, typename Alloc::template rebind<U>::other> other;$/;"	t	struct:btree::TestAllocator::rebind
 overhead	btree/btree.h	/^  double overhead() const {$/;"	f	class:btree::btree
@@ -2490,6 +2503,7 @@ what	machine/connection/zmq_cpp.h	/^        virtual const char *what () const th
 writer_	fs/metadata_store.cc	/^  bool writer_;$/;"	m	class:ExecutionContext	file:
 writes_	fs/metadata_store.cc	/^  map<string, string> writes_;$/;"	m	class:ExecutionContext	file:
 writeset_	experimental/dag_test.cc	/^  int writeset_[WRITESETSIZE];$/;"	m	struct:Node	file:
+ycm_core	.ycm_extra_conf.py	/^import ycm_core$/;"	i
 zmq	machine/connection/zmq_cpp.h	/^namespace zmq$/;"	n
 ~ActionSource	fs/block_log.h	/^    virtual ~ActionSource() {}$/;"	f	class:BlockLogApp::ActionSource
 ~App	machine/app/app.h	/^  virtual ~App() {}$/;"	f	class:App

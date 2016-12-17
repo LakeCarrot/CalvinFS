@@ -66,6 +66,10 @@ message Action {
   // Action status used by VLL scheduler.(FREE or BLOCKED)
   optional int32 action_status = 61;
 
+	// [Bo] Remaster related message
+	// serve as a flag to note a special remaster action
+	optional bool remaster = 70 [default = false];
+	optional uint32 remaster_origin = 71 [default = 0];
   
   enum ActionStatus {
     FREE = 0;
