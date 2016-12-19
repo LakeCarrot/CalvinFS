@@ -106,8 +106,11 @@ class Scheduler : public App {
   // Pointer to action request stream (points to 'no_actions_' by default).
   Source<Action*>* action_requests_;
 
-  // Store on which this scheduler will schedule actions.
+  // [Bo] Store on which this scheduler will schedule regular actions.
   StoreApp* store_;
+	
+	// [Bo] Store on which this scheudler will scheduler remaster actions.
+	StoreApp* master_store_;
 
   uint32 local_replica_;
 
