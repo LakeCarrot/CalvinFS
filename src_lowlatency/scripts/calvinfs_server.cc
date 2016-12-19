@@ -20,6 +20,10 @@
 #include "fs/calvinfs_client_app.h"
 #include "fs/metadata_store.h"
 #include "fs/metadata.pb.h"
+// [Bo] add masterdata store, which is similar to metadata_store
+#include "fs/masterdata_store.h"
+#include "fs/masterdata.pb.h"
+// [oB] 
 #include "scripts/script_utils.h"
 
 DEFINE_bool(calvin_version, false, "Print Calvin version information");
@@ -106,6 +110,16 @@ int main(int argc, char** argv) {
   m.GlobalBarrier();
   Spin(1);
 
+  // [Bo] Start masterdata store app.
+  m.AddApp("MasterdataStoreApp", "masterdata");
+  reinterpret_cast<MasterdataStore*>(
+      reinterpret_cast<StoreApp*>(m.GetApp("masterdata"))->store())
+          ->SetMachine(&m);
+  LOG(ERROR) << "[" << FLAGS_machine_id << "] created MasterdataStore";
+  m.GlobalBarrier();
+  Spin(1);
+	// [oB]
+
   // Start scheduler app.
   m.AddApp("LockingScheduler", "scheduler");
   Scheduler* scheduler_ = reinterpret_cast<Scheduler*>(m.GetApp("scheduler"));
@@ -117,6 +131,9 @@ int main(int argc, char** argv) {
   // Bind scheduler to store.
   scheduler_->SetParameters(FLAGS_max_active, FLAGS_max_running);
   scheduler_->SetStore("metadata", FLAGS_machine_id / partitions);
+	// [Bo] also bind remaster store to the scheduler here
+	scheduler_->SetMasterStore("masterdata", FLAGS_machine_id / partitions);
+	// [oB]
 
   LOG(ERROR) << "[" << FLAGS_machine_id << "] bound Scheduler to MetadataStore";
   m.GlobalBarrier();

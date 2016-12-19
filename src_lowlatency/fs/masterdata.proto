@@ -1,0 +1,97 @@
+// Author: Alex Thomson
+//
+// Revised: Bo Hu
+// Master information of different directory
+
+syntax = "proto2";
+
+message MasterdataEntry {
+  // Master system lock.
+  optional bool locked = 1 [default = false];
+
+	// The file name
+	required string path = 2;
+
+	// The master information
+  required uint64 master = 3;
+}
+
+
+//////////////////////////      Metadata Actions      //////////////////////////
+
+message MasterdataAction {  // actually a namespace
+
+enum Type {
+  CREATE               = 0;
+  ERASE                = 1;
+  CHANGE_MASTER        = 2;
+	LOOKUP               = 3;
+	// [Bo] TODO: need to consider the rename problem in the future
+	RENAME               = 4;
+}
+
+// Possible error conditions.
+enum Error {
+  EntryDoesNotExist  = 0;
+  EntryAlreadyExists = 1;
+}
+
+// Create Input/Output 
+message CreateInput {
+  required string path = 1;
+	required string master = 2; 
+
+}
+message CreateOutput {
+  // True if the file was successfully created.
+  optional bool success = 1 [default = true];
+
+  // List of errors that caused file creation to fail. Should be empty if
+  // success == true.
+  repeated Error errors = 2;
+}
+
+// Erase Input/Output
+message EraseInput {
+  required string path = 1;
+}
+message EraseOutput {
+  optional bool success = 1 [default = true];
+  repeated Error errors = 2;
+}
+
+// Rename Input/Output
+message RenameInput {
+  required string from_path = 1;
+  required string to_path = 2;
+}
+message RenameOutput {
+  optional bool success = 1 [default = true];
+  repeated Error errors = 2;
+}
+
+// Lookup Input/Output 
+message LookupInput {
+  required string path = 1;
+}
+message LookupOutput {
+  optional bool success = 1 [default = true];
+  repeated Error errors = 2;
+
+  // Entry that was looked up. This field should appear iff success == true.
+  optional MasterdataEntry entry = 3;
+}
+
+// ChangeMaster 
+message ChangeMasterInput {
+  required string path   = 1;
+  required uint64 master = 2;
+
+}
+message ChangeMasterOutput {
+  optional bool success = 1 [default = true];
+  repeated Error errors = 2;
+}
+
+}  // message MasterdataAction
+

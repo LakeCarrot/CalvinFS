@@ -28,7 +28,6 @@ REGISTER_APP(LockingScheduler) {
   return new LockingScheduler();
 }
 
-// [Bo] For the remaster transcation, 
 void LockingScheduler::MainLoopBody() {
   Action* action;
 
@@ -112,6 +111,7 @@ void LockingScheduler::MainLoopBody() {
 			header->add_misc_int(replica_);
 			machine()->SendMessage(header, new MessageBuffer())
 		}
+		// [oB]
 
 		active_actions_.erase(action->version());
 		running_action_count_--;
