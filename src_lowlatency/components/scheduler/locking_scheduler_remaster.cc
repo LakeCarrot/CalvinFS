@@ -99,7 +99,14 @@ void LockingScheduler::MainLoopBody() {
 				: *active_actions_.begin());
 		// [Bo] After finishing the remaster transcation 
 		if(action->remaster == true) {
-			// [Bo] TODO send the message to blocklog app
+			// [Bo] send the message to blocklog app
+			Header* header = new Header();
+			header->set_from(machine()->machine_id());
+			header->set_to(action->remaster_origin);
+			header->set_type(Header::RPC);
+			header->set_app("BlockLogApp");
+			header->set_rpc("REMASTER_ACK");
+			machine()->SendMessage(header, new MessageBuffer())
 		}
 	}
 
