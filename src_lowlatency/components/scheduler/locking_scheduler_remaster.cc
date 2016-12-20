@@ -14,15 +14,20 @@
 #include "components/store/store_app.h"
 #include "proto/header.pb.h"
 #include "proto/action.pb.h"
+// add machine dependency to send message
+#include "machine/app/app.h"
+#include "fs/calvinfs.h"
 
 using std::set;
 using std::string;
+class Header;
+class Machine;
+class MessageBuffer;
 
 REGISTER_APP(LockingScheduler) {
   return new LockingScheduler();
 }
 
-// [Bo] For the remaster transcation, 
 void LockingScheduler::MainLoopBody() {
   Action* action;
 
@@ -38,6 +43,7 @@ void LockingScheduler::MainLoopBody() {
 		if(action->remaster == true) {
 			running_action_count_++;
 			// [Bo] TODO: need to figure out how master_store_ works
+			// can turn to metastore for template
 			master_store_->RunAsync(action, &completed_);
 		} else {
 
@@ -91,23 +97,28 @@ void LockingScheduler::MainLoopBody() {
 			}
 		}
 
-		active_actions_.erase(action->version());
-		running_action_count_--;
-		safe_version_.store(
-				active_actions_.empty()
-				? (high_water_mark_ + 1)
-				: *active_actions_.begin());
 		// [Bo] After finishing the remaster transcation 
 		if(action->remaster == true) {
 			// [Bo] send the message to blocklog app
+			CalvinFSConfigMap* config_ = new CalvinFSConfigMap(machine());
+		  uint64 replica_ = config_->LookupReplica(machine->machine_id());	
 			Header* header = new Header();
 			header->set_from(machine()->machine_id());
 			header->set_to(action->remaster_origin);
 			header->set_type(Header::RPC);
 			header->set_app("BlockLogApp");
 			header->set_rpc("REMASTER_ACK");
+			header->add_misc_int(replica_);
 			machine()->SendMessage(header, new MessageBuffer())
 		}
+		// [oB]
+
+		active_actions_.erase(action->version());
+		running_action_count_--;
+		safe_version_.store(
+				active_actions_.empty()
+				? (high_water_mark_ + 1)
+				: *active_actions_.begin());
 	}
 
 	// Start executing all actions that have newly acquired all their locks.

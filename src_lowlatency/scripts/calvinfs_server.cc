@@ -117,6 +117,9 @@ int main(int argc, char** argv) {
   // Bind scheduler to store.
   scheduler_->SetParameters(FLAGS_max_active, FLAGS_max_running);
   scheduler_->SetStore("metadata", FLAGS_machine_id / partitions);
+	// [Bo] also bind remaster store to the scheduler here
+	scheduler_->SetMasterStore("masterdata", FLAGS_machine_id / partitions);
+	// [oB]
 
   LOG(ERROR) << "[" << FLAGS_machine_id << "] bound Scheduler to MetadataStore";
   m.GlobalBarrier();

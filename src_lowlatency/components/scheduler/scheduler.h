@@ -88,6 +88,19 @@ class Scheduler : public App {
     local_replica_ = replica;
   }
 
+  // [Bo] Binds the scheduler to a particular REMASTER store, which must be registered on
+  // the same machine as a StoreApp under 'store_app_name'. Once set, the store
+  // to which the scheduler is bound cannot be unset or changed.
+  //
+  // Requires: machine()->HasApp(store_app_name)
+  void SetMasterStore(const string& store_app_name, const uint32& replica) {
+    CHECK(master_store_ == NULL);
+    CHECK(machine()->GetApp(store_app_name) != NULL);
+    master_store_ = reinterpret_cast<StoreApp*>(machine()->GetApp(store_app_name));
+    local_replica_ = replica;
+  }
+	// [oB]
+
   void SetParameters(int a, int b) {
     kMaxActiveActions = a;
     kMaxRunningActions = b;
@@ -106,8 +119,11 @@ class Scheduler : public App {
   // Pointer to action request stream (points to 'no_actions_' by default).
   Source<Action*>* action_requests_;
 
-  // Store on which this scheduler will schedule actions.
+  // [Bo] Store on which this scheduler will schedule regular actions.
   StoreApp* store_;
+	
+	// [Bo] Store on which this scheudler will scheduler remaster actions.
+	StoreApp* master_store_;
 
   uint32 local_replica_;
 
