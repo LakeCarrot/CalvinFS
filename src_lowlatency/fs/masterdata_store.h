@@ -32,6 +32,8 @@ class MasterdataStore : public Store {
   void SetMachine(Machine* m);
   void Init();
   void InitSmall();
+	// [Bo] add a lookup function for blocklog to check the master information
+	void LookUpMasterByDir(string path);
 
  private:
   void CreateFile_Internal(

@@ -99,7 +99,7 @@ class Scheduler : public App {
     master_store_ = reinterpret_cast<StoreApp*>(machine()->GetApp(store_app_name));
     local_replica_ = replica;
   }
-	// [Bo]
+	// [oB]
 
   void SetParameters(int a, int b) {
     kMaxActiveActions = a;

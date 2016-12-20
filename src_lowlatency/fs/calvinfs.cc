@@ -121,6 +121,28 @@ uint32 CalvinFSConfigMap::LookupReplicaByDir(string dir) {
   return num / config_.metadata_shard_count();
 }
 
+// [Bo] change the master information
+void CalvinFSConfigMap::ChangeMaster(string dir, uint64 dest_replica_id) 
+{
+	WriteLock l(&master_lock);
+	master_[dir] = dest_replica_id;
+	return;
+}
+// [oB] 
+
+// [Bo] lookup master 
+uint64 LookupMasterByDir(string dir)
+{
+  map<string,uint64>::iterator it;
+	ReadLock l(&master_lock);
+	it = master_.find(dir);
+	if(it != master_.end())
+		return it->second;
+	else{
+		return LookupReplicaByDir(dir); 
+	}	
+}
+// [oB]
 ////////////////////////////////////////////////////////////////////////////////
 
 CalvinFSConfig MakeCalvinFSConfig() {

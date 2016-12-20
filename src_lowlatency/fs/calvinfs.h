@@ -9,6 +9,7 @@
 #include "fs/fs.h"
 #include "fs/calvinfs_config.pb.h"
 #include "common/source.h"
+#include "common/mutex.h"
 
 class Action;
 class Machine;
@@ -40,6 +41,12 @@ class CalvinFSConfigMap {
   // Lookup machine containing MDS (id, replica).
   uint64 LookupMetadataShard(uint64 id, uint64 replica = 0);
 
+	// Lookup master containing dir
+	uint64 LookupMasterByDir(string dir);
+	
+	// Change dir master
+	void ChangeMaster(string dir, uint64 dest_replica_id);
+
   const map<pair<uint64, uint64>, uint64>& mds() { return metadata_shards_; }
 
   const CalvinFSConfig& config() { return config_; }
@@ -57,6 +64,14 @@ class CalvinFSConfigMap {
 
   // machine -> replica
   map<uint64, uint64> replicas_;
+
+	// [Bo] dir -> replica
+	map<string, uint64> master_;
+	// [oB]
+	
+	// [Bo] master_ read-write lock
+	MutexRW master_lock; 
+	// [oB]
 
   // (id, replica) -> machine
   map<pair<uint64, uint64>, uint64> bluckets_;
