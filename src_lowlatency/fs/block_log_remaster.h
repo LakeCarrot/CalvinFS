@@ -146,6 +146,9 @@ class BlockLogApp : public App {
           set<uint64> remotes_;
           queue_.Pop(&a);
 
+          uint64 action_uid = machine()->GetGUID();
+          a->set_uid(action_uid);
+
           for (int j = 0; j < a.readset_size(); j++) {
             if (config_->LookupReplicaByDir(a.readset(j)) != replica_) {
               remotes_.insert(config_->LookupReplicaByDir(a.readset(j)));
@@ -311,22 +314,64 @@ class BlockLogApp : public App {
 
 
     
-    /* [Peizhen] add REMASTER_ACK rpc call
+    /* [Peizhen] add REMASTER_ACK rpc call & REROUTE rpc call
      * Do things: modify map & let go some waiting actions, modify ongoing, change configuration file
      */
     if (header->rpc() == "REMASTER_ACK") {
       uint64 remote_one = header->misc_int(0);
       ongoing_.erase(remote_one);
 
-      //[TODO] add binding logic so that blocklogApp is able to access master_store_
-      uint64 to = replica_;
-      uint64 from = remote_one;
-      master_store_->ChangeConf(from, to);
+      // Change configuration
+      StringSequence seq;
+      seq.ParseFromArray((*message)[0].data(), (*message)[0].size());
+      for (int i = 0; i < seq.strs_size(); i++) {
+        // change dir's master to current replica
+        config_->ChangeMaster(seq.strs(i), replica_);
+      }
 
       // modify map
-      
+      // Note that 1) keys are immutable; 2) alloc actions rather than shallow copy
+      for (auto it = multi_wait_map_.begin(); it != multi_wait_map_.end(); it++) {
+        if ((it->first).find(remote_one) != (it->first).end() && (it->first).size() == 1) {
+          // release all actions in this key
+          for (int i = 0; i < it->second.entries_size(); i++) {
+            Action* action = new Action();
+            action->CopyFrom(it->second.entries(i));
+            queue_.Push(action);
+          }
+          multi_wait_map_.erase(it);
+        } else if ((it->first).find(remote_one) != (it->first).end() && (it->first).size() > 1) {
+          // modify keys (copy, modify, insert, delete)
+          set<uint64> ptr(it->first);
+          ptr.erase(remote_one);
+          for (int i = 0; i < it->second.entries_size(); i++) {
+            multi_wait_map_[ptr].mutable_entries()->AddAllocated(it->second.entries(i));
+          }
+          multi_wait_map_.erase(it);
+        }
+      }
 
-    } 
+    } else if (header->rpc() == "REROUTE") {
+      uint64 dst_replica = header->misc_int(0);
+      Action* a = new Action();
+      a->ParseFromArray((*message)[0].data(), (*message)[0].size());
+
+      // check if we have already rerouted this action
+      if (history_reroute_.find(a->uid()) == history_reroute_.end()) {
+        Header* header1 = new Header();
+        header1->set_from(machine()->machine_id());
+        header1->set_to(dst_replica * (machine()->config().size() / replica_count));
+        header1->set_type(Header::RPC);
+        header1->set_app(name());
+        header1->set_rpc("APPEND");
+        machine()->SendMessage(header1, new MessageBuffer(*a));
+        history_reroute_.insert(a->uid());
+      }
+      delete a;
+    }
+
+
+
     // [Bo] if receieve a request from the client
     // then push the actions list to the waiting queue
     else if (header->rpc() == "APPEND") {
@@ -369,6 +414,14 @@ class BlockLogApp : public App {
         if (batch.entries(i).fake_action() == true) {
           continue;
         }
+
+        // [Peizhen] add Tr to all subbatch
+        if (batch.entries(i).remaster() == true) {
+          for (auto it = mds_.begin(); it != mds_.end(); ++it) {
+            subbatches[*it].add_entries()->CopyFrom(batch.entries(i));
+          }
+        }
+
 
         for (int j = 0; j < batch.entries(i).readset_size(); j++) {
           if (config_->LookupReplicaByDir(batch.entries(i).readset(j)) == batch.entries(i).origin()) {
@@ -561,6 +614,8 @@ class BlockLogApp : public App {
   map<set<uint64>, ActionBatch> multi_wait_map_;
   // store all ongoing remote replicas that are moving to this replica
   set<uint64> ongoing_;
+  // history rerouted action uid
+  set<uint64> history_reroute_;
 
   // fake multi-replicas actions batch received.
   AtomicMap<uint64, ActionBatch*> fakebatches_;

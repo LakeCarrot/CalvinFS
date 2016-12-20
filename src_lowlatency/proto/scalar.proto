@@ -44,3 +44,7 @@ message PairSequence {
   optional uint64 misc = 2;
 }
 
+// [Peizhen] Add a data structure
+message StringSequence {
+  repeated string strs = 1;
+}
