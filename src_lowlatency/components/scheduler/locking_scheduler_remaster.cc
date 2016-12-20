@@ -40,43 +40,84 @@ void LockingScheduler::MainLoopBody() {
 		int ungranted_requests = 0;
 
 		// [Bo] first check the action is remaster or not
+		CalvinFSConfigMap* config_ = new CalvinFSConfigMap(machine());
+		uint64 replica_ = config_->LookupReplica(machine->machine_id());	
 		if(action->remaster == true) {
 			running_action_count_++;
-			// [Bo] TODO: need to figure out how master_store_ works
-			// can turn to metastore for template
-			master_store_->RunAsync(action, &completed_);
+			// TODO: figure out where to find the dir and master information
+			config_->ChangeMaster(action->remaster_dir, action->remaster_origin);
+			completed_.Push(&action);
+			// [Bo] send the remaster_ack message to blocklog app
+			Header* header = new Header();
+			header->set_from(machine()->machine_id());
+			header->set_to(action->remaster_origin);
+			header->set_type(Header::RPC);
+			header->set_app("BlockLogApp");
+			header->set_rpc("REMASTER_ACK");
+			header->add_misc_int(replica_);
+			machine()->SendMessage(header, new MessageBuffer())
 		} else {
 
-			// Request write locks. Track requests so we can check that we don't
-			// re-request any as read locks.
-			set<string> writeset;
+			// Before Acquiring Lock, first check all the dir in read/write size to find out whether all of them are ordered (by checking action->origin) and mastered (by checking master_ map) by the same replica
+			bool reroute = false;
+			uint64 reroute_origin = 0;
 			for (int i = 0; i < action->writeset_size(); i++) {
-				if (store_->IsLocal(action->writeset(i))) {
-					writeset.insert(action->writeset(i));
-					if (!lm_.WriteLock(action, action->writeset(i))) {
-						ungranted_requests++;
-					}
+				if(action->origin != config_->LookupReplicaByDir(action->writeset(i))) {
+					reroute = true;
+					reroute_origin = config_->LookupReplicaByDir(action->writeset(i));
+					break;
 				}
 			}
-
-			// Request read locks.
-			for (int i = 0; i < action->readset_size(); i++) {
-				// Avoid re-requesting shared locks if an exclusive lock is already
-				// requested.
-				if (store_->IsLocal(action->readset(i))) {
-					if (writeset.count(action->readset(i)) == 0) {
-						if (!lm_.ReadLock(action, action->readset(i))) {
+			for (int i = 0; i < action->readset_size() && !reroute; i++) {
+				if(action->origin != config_->LookupReplicaByDir(action->readset(i))) {
+					reroute = true;
+					reroute_origin = config_->LookupReplicaByDir(action->readset(i));
+					break;
+				}
+			}
+			if(reroute) {
+				// if need reroute this action to origin
+				// [Bo] send the reroute message to blocklog app
+				Header* header = new Header();
+				header->set_from(machine()->machine_id());
+				header->set_to(reroute_origin);
+				header->set_type(Header::RPC);
+				header->set_app("BlockLogApp");
+				header->set_rpc("REROUTE");
+				machine()->SendMessage(header, new MessageBuffer(action))
+				break;
+			} else {
+				// Request write locks. Track requests so we can check that we don't
+				// re-request any as read locks.
+				set<string> writeset;
+				for (int i = 0; i < action->writeset_size(); i++) {
+					if (store_->IsLocal(action->writeset(i))) {
+						writeset.insert(action->writeset(i));
+						if (!lm_.WriteLock(action, action->writeset(i))) {
 							ungranted_requests++;
 						}
 					}
 				}
-			}
 
-			// If all read and write locks were immediately acquired, this action
-			// is ready to run.
-			if (ungranted_requests == 0) {
-				running_action_count_++;
-				store_->RunAsync(action, &completed_);
+				// Request read locks.
+				for (int i = 0; i < action->readset_size(); i++) {
+					// Avoid re-requesting shared locks if an exclusive lock is already
+					// requested.
+					if (store_->IsLocal(action->readset(i))) {
+						if (writeset.count(action->readset(i)) == 0) {
+							if (!lm_.ReadLock(action, action->readset(i))) {
+								ungranted_requests++;
+							}
+						}
+					}
+				}
+
+				// If all read and write locks were immediately acquired, this action
+				// is ready to run.
+				if (ungranted_requests == 0) {
+					running_action_count_++;
+					store_->RunAsync(action, &completed_);
+				}
 			}
 		}
 	}
@@ -96,22 +137,6 @@ void LockingScheduler::MainLoopBody() {
 				lm_.Release(action, action->writeset(i));
 			}
 		}
-
-		// [Bo] After finishing the remaster transcation 
-		if(action->remaster == true) {
-			// [Bo] send the message to blocklog app
-			CalvinFSConfigMap* config_ = new CalvinFSConfigMap(machine());
-		  uint64 replica_ = config_->LookupReplica(machine->machine_id());	
-			Header* header = new Header();
-			header->set_from(machine()->machine_id());
-			header->set_to(action->remaster_origin);
-			header->set_type(Header::RPC);
-			header->set_app("BlockLogApp");
-			header->set_rpc("REMASTER_ACK");
-			header->add_misc_int(replica_);
-			machine()->SendMessage(header, new MessageBuffer())
-		}
-		// [oB]
 
 		active_actions_.erase(action->version());
 		running_action_count_--;

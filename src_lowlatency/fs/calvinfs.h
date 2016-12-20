@@ -41,9 +41,6 @@ class CalvinFSConfigMap {
   // Lookup machine containing MDS (id, replica).
   uint64 LookupMetadataShard(uint64 id, uint64 replica = 0);
 
-	// Lookup master containing dir
-	uint64 LookupMasterByDir(string dir);
-	
 	// Change dir master
 	void ChangeMaster(string dir, uint64 dest_replica_id);
 
