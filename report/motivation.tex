@@ -1,12 +1,20 @@
 \section{Motivation}
 
-\subsection{Existing problems}
+\subsection{Background}
+\subsubsection{Highly scalable geo-distributed file system}
+Today, web-scale applications need to store and process a large amount of data. To provide the same responsive service to users all around the world, building a highly scalable geo-dsitributed file system is a must. However, previous geo-distributed file system utilized a fundamentally unscalable design for metadata layer management. Considering to reduce synchronization overhead because of replication or partition, they either use single-node or share-disk design to manage the metadata of the whole file system. The underling assumption is the file size in the system is large on average. Therefore, the metadata layer is small enough to be managed by a single-node or share-disk framework. 
 
-\note{blue}{we can add some contents from our slides into this part}
+However, that is not always the case, when there are large number of small files in the file system, there might not be enough space for a single node to manage these metadata. Moreover, the metadata management layer will obviously become a throughput bottleneck of the file system. To build a highly scalable geo-distributed file system, a highly scale metadata management system is a must.
+
+\subsubsection{CalvinFS}
+CalvinFS \cite{thomson2015calvinfs} is a metadata management system designed for the geo-distributed file system. Building on a distributed database system, Calvin, CalvinFS partitions and replicates metadata across a shared-nothing cluster of servers. It provides paxos-based strong consistency by posing a global deterministic transactions ordering. And also because of these global order, CalvinFS is a dead-lock system, which means it doesn't need a distributed commit protocol for distributed transactions. These two properties are largely improving the scalability as well as the throughput of the metadata management system when compared to traditional ones.
+
+Unfortunately, high throughput and scalability come at a price. Compared to the single-node design, CalvinFS has a non-negligible latency. That is mainly coming from the Paxos-based consistency. It takes a server 2 RTTs from receiving the request to getting the global order of the transactions. And as the system itself is a geo-distributed, the average RTT between different replicas will be quite long, which makes the latency worse. Moreover, the latency will be even worse for the multi-file transactions, a server need to wait for collecting all the other related partitions' results to make real progress. The latency issue because of applying Calvin to metadata management system makes CalvinFS not a good choice.
+
+\subsubsection{Master}
+One key observation of this kind of geo-distributed file system is that a file or a directory is mostly accessed by a specific geo-replica. So, we can just let this specific replica take charge of the ordering of transactions involved with a range of files and directories, which we call "mastering" them in this paper. By letting each replica masters a partition of the metadata, we can determine the order of most transactions locally to reduce latency because of Paxos mechanism.  However, not all transactions are involved with files that mastered by only one replica. These multi-mastered transactions will make the latency and consistency become a problem. 
 
 \subsection{Design Goals}
-To reduce unnecessary latency, and as well not sacrificing strong consistency. We plan to optimize in two aforementioned aspects. 
+To reduce unnecessary latency, and as well not sacrificing strong consistency. We plan to replace time-consuming Paxos-like replication consensus protocol with a more lightweight protocol, which we call remastering protocol, to guarantee the total ordering without bringing inconsistency. Building on top of the master method, when receiving multi-mastered transactions, we first delay them to make all of the files in the transaction mastered by a single replica, and then process it as a new single-mastered transaction. In next section, we will introduce the design details of this protocol.
 
-First, we plan to replace time-consuming Paxos-like replication consensus protocol with a more lightweight protocol to guarantee the total ordering without bringing inconsistency.
-
-Second, we plan to use machine learning algorithms to infer the access pattern of files and periodically adjust the master location based on such pattern, so as to make most transactions running locally, rather than cross geographic regions.
+%Second, we plan to use machine learning algorithms to infer the access pattern of files and periodically adjust the master location based on such pattern, so as to make most transactions running locally, rather than cross geographic regions.
