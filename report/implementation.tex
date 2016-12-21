@@ -1,6 +1,66 @@
 \section{Implementation}
-Summary
-\subsection{BlockLopApp}
+This section, we will dive into the implementation details of our remastering protocol. Our implementation is based on the source code of CalvinFS\cite{}. As mentioned in Section 3, there are mainly two components in the protocol. The BlockLogApp part takes charge of handling user's request and remaster-related RPC messages. The Scheduler mainly takes charge of executing every single action within the transaction, changing the master information according to the remaster action and rerouting the regular transactions based on the origin of the transaction and the current master information of these transactions. We mainly revise the \emph{fs/block\_log\_remaster.h} and \emph{components/scheduler/locking\_scheduler\_remaster.h}. We also hacked some other places, you can check our source code for more details.
+
+\subsection{Basic data and message format}
+Before diving into the details of implementation, we need to clarify the basic data structures and RPC message format to implement the remastering protocol.
+\subsubsection{Basic data structure}
+\begin{itemize}
+\item \emph{map$<$string, uint64$>$ master\_}:
+A map from a path of a file or directory to the replica that mastering it. It serves as a configuration file to record current master information. 
+\item \emph{map$<$set$<$string$>$, ActionBatch$>$ multi\_wait\_map\_}:
+A map from a set of files or directories that currently are not mastered by current replica to the action that involved with this set of files or directories. It serves as queue to delay the multi-mastered transactions until all the related files and directories have already remastered to current replica. 
+\item \emph{set$<$string$>$ ongoing\_}:
+A set that contains all the directories or files that currently are not mastered current replica but will be remastered to current replica. 
+\item \emph{set$<$uint64$>$ history\_reroute\_}: 
+A set that contains all the unique action id that has already been rerouted. 
+\end{itemize}
+\subsubsection{RPC message format}
+\begin{itemize}
+\item REMASTER ACK
+\begin{itemize}
+\item \textbf{required} \emph{uint64 replica\_} the replica that has already changed the master information of particular file or directory.
+\item \textbf{repeated} \emph{string path} the set of files or directories that need to be remastered. 
+\end{itemize}
+\item REROUTE
+\begin{itemize}
+\item \textbf{required} \emph{Action action} the rerouted action that contains all the essential information that make the action running properly. 
+\end{itemize}
+\end{itemize}
+
+\subsection{BlockLockApp}
+\subsubsection{Analyzing incoming transactions}
+The first functionality in BlockLockApp is analyzing incoming transactions to figure out whether we need to start a new remaster transaction. We rewrite the \emph{LookupReplicaByDir} function in \emph{class CalvinFSConfigMap} and add a \emph{master\_} map in this class to note down the current mastering condition. 
+
+If we found there is at least one entry is not mastered by current replica after scanning through the \emph{readset} and \emph{writeset} of this specific action. 
+
+\begin{itemize}
+\item First, We will delay this action by pushing to the waiting queue \emph{multi\_wait\_map\_}. 
+
+\item At the same time, to help with avoiding the problem because of overlapping remaster operation, we also use \emph{on\_going\_} map to record directories that is being remastered. 
+
+\item After that, it will append a special remaster action to all local Paxos leader of each replica, notifying them to begin the remaster process. 
+\end{itemize}
+
+\subsubsection{Handling Remaster Transactions}
+After the local Paxos leader receiving the remaster transactions, it simply wraps it into all the \emph{SUBBATCH} RPC messages and sends it to all its local followers to make them all have the same view of the mastering information. 
+
+\subsubsection{Handling Reroute message}
+The processing of Reroute RPC message is quite straightforward, we first get the \emph{action} by extracting the \emph{MessageBuffer}. After that, we check the \emph{history\_reroute\_} set to find out whether this action has already been rerouted or not. If not, we append to our local action queue to get it being further processed.
+
+\subsubsection{Handling Remaster Ack message}
+When receiving an Remaster Ack message, 
+\begin{itemize}
+\item First, we change the related files and directories master information stored in \emph{master\_} to make the remaster come into effect. 
+
+\item At the same time, modify the \emph{ongoing\_} set to erase the related files information.
+
+\item Then, scanning through the \emph{multi\_wait\_map\_} to erase all the related file information, if an action is no longer waiting for any other files' remastering, append that files to the \emph{active\_action\_} queue.
+\end{itemize}
 
 \subsection{Scheduler}
+\subsubsection{Handling remaster transaction}
+When receiving a remaster transaction, we simply change the paths that contained in the action and wrap all the remastered file information and local replica id to the \emph{REMASTER\_ACK} RPC message to the origin replica. 
+
+\subsubsection{Handling Other transactions}
+When dealing with other transactions, before acquiring the lock of read and write set of this specific action, we need to first check whether we need to reroute this action or not. In our implementation, we compared the origin of the action with the master of the action by using the rewritten \emph{LookupReplicaByDir} function, if these two values are different, which means there is some files related to this action has already been remastered. This action is no longer ordered by our replica. In this case, We will wrap this action to a \emph{REROUTE} RPC message and send it to its new master.
 

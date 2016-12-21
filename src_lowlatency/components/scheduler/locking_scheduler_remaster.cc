@@ -49,10 +49,7 @@ void LockingScheduler::MainLoopBody() {
 			// [Bo] send the remaster_ack message to blocklog app
 			StringSequence seq;
 			for (int i = 0; i < action->remaster_dirs_size(); i++) {
-<<<<<<< Updated upstream
-=======
 				config_->ChangeMaster(action->remaster_dirs(i), action->remaster_origin);
->>>>>>> Stashed changes
 				seq.add_strs()->CopyFrom(action->remaster_dirs(i));
 			}
 			Header* header = new Header();
@@ -60,7 +57,7 @@ void LockingScheduler::MainLoopBody() {
 			header->set_to(action->remaster_origin);
 			header->set_type(Header::RPC);
 			header->set_app("BlockLogApp");
-			header->set_rpc("REMASTER_ACK");
+			heeder->set_rpc("REMASTER_ACK");
 			header->add_misc_int(replica_);
 			machine()->SendMessage(header, new MessageBuffer(seq))
 		} else {
