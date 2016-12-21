@@ -1,0 +1,7 @@
+\section{Introduction}
+
+\note{blue}{copied from proposal}
+
+CalvinFS is a highly scalable distributed filesystem, which stores files metadata in a distributed database rather than in a single server. This design choice dramatically increases the scalability of the filesystem, and as well overcomes single-point failure of metadata server so that provides higher availability. However, such optimization incurs additional overhead on manipulating file metadata. Originally, modifying the metadata of a file only needs a single RPC call from the client to the metadata server, while now it needs a distributed transaction to achieve this goal.
+
+Moreover, in order to fulfill stringent availability requirement, data are often replicated in geographically separated regions, to overcome the entire datacenter outage caused by natural disaster. In such scenario, the cross-region distributed transaction will result in unacceptably high latency. To be specific, in CalvinFS, the latency mainly stems from following two aspects: 1) the global ordering of all distributed transactions to maintain consistency between replicas; 2) Concurrency control when executing transactions, such as Two-phase Locking (2PL).

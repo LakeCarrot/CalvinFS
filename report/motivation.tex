@@ -1,0 +1,12 @@
+\section{Motivation}
+
+\subsection{Existing problems}
+
+\note{blue}{we can add some contents from our slides into this part}
+
+\subsection{Design Goals}
+To reduce unnecessary latency, and as well not sacrificing strong consistency. We plan to optimize in two aforementioned aspects. 
+
+First, we plan to replace time-consuming Paxos-like replication consensus protocol with a more lightweight protocol to guarantee the total ordering without bringing inconsistency.
+
+Second, we plan to use machine learning algorithms to infer the access pattern of files and periodically adjust the master location based on such pattern, so as to make most transactions running locally, rather than cross geographic regions.

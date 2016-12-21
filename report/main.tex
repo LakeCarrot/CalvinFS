@@ -1,0 +1,123 @@
+% TEMPLATE for Usenix papers, specifically to meet requirements of
+%  USENIX '05
+% originally a template for producing IEEE-format articles using LaTeX.
+%   written by Matthew Ward, CS Department, Worcester Polytechnic Institute.
+% adapted by David Beazley for his excellent SWIG paper in Proceedings,
+%   Tcl 96
+% turned into a smartass generic template by De Clarke, with thanks to
+%   both the above pioneers
+% use at your own risk.  Complaints to /dev/null.
+% make it two column with no page numbering, default is 10 point
+
+% Munged by Fred Douglis <douglis@research.att.com> 10/97 to separate
+% the .sty file from the LaTeX source template, so that people can
+% more easily include the .sty file into an existing document.  Also
+% changed to more closely follow the style guidelines as represented
+% by the Word sample file. 
+
+% Note that since 2010, USENIX does not require endnotes. If you want
+% foot of page notes, don't include the endnotes package in the 
+% usepackage command, below.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\figref}[1]{Figure~\ref{#1}}
+\newcommand{\secref}[1]{Section~\ref{#1}}
+\newcommand{\tabref}[1]{Table~\ref{#1}}
+\newcommand{\heading}[1]{\vspace{4pt}\noindent\textbf{#1}}
+\newcommand{\noheading}[0]{\vspace{4pt}\noindent}
+\newcommand{\program}[1]{\texttt{#1}}
+\newcommand{\term}[1]{\texttt{#1}}
+\newcommand{\captiontext}[1]{\textsf{\normalsize #1}}
+\newcommand{\note}[2]{\textit{\textbf{\textcolor{#1}{#2}}}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\documentclass[letterpaper,twocolumn,10pt]{article}
+\usepackage{usenix,epsfig,endnotes}
+
+\usepackage{multirow}
+\usepackage{hhline}
+\usepackage{color}
+\usepackage{etoolbox}
+
+\begin{document}
+
+%don't want date printed
+\date{}
+
+%make title bold and 14 pt font (Latex default is non-bold, 16 pt)
+\title{\Large \bf Towards Low-latency Geo-replicated Filesystem with Adaptive Remastering }
+
+\author{
+{\rm Peizhen Guo}\\
+Yale University
+\and
+{\rm Bo Hu}\\
+Yale University
+}
+
+\maketitle
+
+% Use the following at camera-ready time to suppress page numbers.
+% Comment it out when you first submit the paper for review.
+\thispagestyle{empty}
+
+
+%\subsection*{Abstract}
+%Your Abstract Text Goes Here.  Just a few facts.
+%Whet our appetites.
+
+\input{introduction}
+\input{motivation}
+\input{design}
+\input{Discussion}
+\input{implementation}
+\input{future}
+\input{conclusion}
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\if 0
+\section{Tentative Working Plan}
+
+By communicating with Kun, we find that Kun has already done some works in this project. Instead of directly deploying remaster idea, Kun, instead, implemented a way to handle the ordering of distributed transaction requests. He proposed a tentative algorithm that each transaction will be broadcasted to all participating regions, and without running consensus protocol, each participating region independently decides their ordering and broadcast it. If they are inconsistent with each other, there will be deadlocks (cycles) in the transaction dependency graph. Therefore, the lightweight deadlock resolution algorithm is the main goal. Kun is currently working on this part. Hence, based on the current status, the overall plan of our final project consists of three stages, and each stage spans roughly two weeks.
+
+
+For the first two weeks, we plan to get familiar with the code base of CalvinFS and catch up with the existing work Kun has done. And also, we’d like to work with Kun to figure out an elegant way to solve the deadlock problem. Kun said he has some tentative solution related to the deadlock problem, we will discuss about these solutions later with Kun in details. Hopefully, we can ramp up and move on to the remaster part in two weeks.
+
+
+For the next two weeks, we plan to first work on enabling the remaster operation in the CalvinFS, One important point is to design a remastering protocol so as to guarantee strong consistency during remastering procedures. And also as the on-demand master migration is not supported by original CalvinFS, it will take some time for us to figure out how to enable this functionality. After finishing this part, we will move on to prepare for the in-class presentation and do some related evaluations.
+
+
+For the last two weeks, we’d like to make it as a grace period. If some expected things happens, and we don’t manage to follow the time schedule, these two weeks is a good time for us to catch up with the schedule and finish the final report at last. 
+
+
+\section{Evaluation}
+We plan to evaluate our system, Super CalvinFS, in three aspects, deadlock resolution, adaptive remastering, and distributed transaction performance. The previous two aspects will be evaluated with micro-benchmark, to justify the correctness and performance of the two essential modules. For the last part, we plan to use standard benchmark, like TPC-C to test our performance under different settings. 
+
+\indent \textbf{Deadlock resolution.} \,\,This session is related to the assessment of different deadlock resolution methods to find the most suitable one for the Super CalvinFS . 
+
+\textbf{Remaster operation.} \,\,This part is mainly aimed at proving the correctness of remastering operation, as well as the response accuracy.
+
+\textbf{Distributed transaction performance.} \,\,This session discusses the performance of the Super CalvinFS, including the throughput and latency, given different ratio of the distributed transactions within all transactions. We can get the maximum performance gain by using Super CalvinFS when there is no distributed transactions. And also, we can know the overhead of Super CalvinFS compared to CalvinFS when testing under the condition all of the transactions are distributed transactions~\cite{Einstein}.
+\fi
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+{\footnotesize \bibliographystyle{acm}
+\bibliography{sample}}
+
+
+%\theendnotes
+
+\end{document}
+
+
+
+
+
+
+
