@@ -50,7 +50,7 @@ void LockingScheduler::MainLoopBody() {
 			// [Bo] send the remaster_ack message to blocklog app
 			StringSequence seq;
 			for (int i = 0; i < action->remaster_dirs_size(); i++) {
-				seq.add_remaster_dirs()->CopyFrom(action->remaster_dirs(i));
+				seq.add_strs()->CopyFrom(action->remaster_dirs(i));
 			}
 			Header* header = new Header();
 			header->set_from(machine()->machine_id());

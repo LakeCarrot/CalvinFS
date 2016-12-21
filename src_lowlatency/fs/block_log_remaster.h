@@ -29,9 +29,9 @@ class Machine;
 class MessageBuffer;
 
 class SequenceSource : public Source<UInt64Pair*> {
- public:
+public:
   explicit SequenceSource(Source<PairSequence*>* source)
-      : source_(source), current_(NULL), index_(0), offset_(0) {
+    : source_(source), current_(NULL), index_(0), offset_(0) {
   }
   virtual ~SequenceSource() {
     delete source_;
@@ -47,7 +47,7 @@ class SequenceSource : public Source<UInt64Pair*> {
       if (current_->pairs_size() == 0) {
         delete current_;
         current_ = NULL;
-LOG(ERROR) <<"^^^^^^^^^SequenceSource wrong!!!";
+        LOG(ERROR) << "^^^^^^^^^SequenceSource wrong!!!";
 
       } else {
         index_ = 0;
@@ -67,7 +67,7 @@ LOG(ERROR) <<"^^^^^^^^^SequenceSource wrong!!!";
     return true;
   }
 
- private:
+private:
   Source<PairSequence*>* source_;
   PairSequence* current_;
   int index_;
@@ -75,7 +75,7 @@ LOG(ERROR) <<"^^^^^^^^^SequenceSource wrong!!!";
 };
 
 class BlockLogApp : public App {
- public:
+public:
   BlockLogApp() : go_(true), going_(false), to_delete_(60) {}
 
   virtual ~BlockLogApp() {
@@ -102,23 +102,23 @@ class BlockLogApp : public App {
 
     // Get ptr to local block store app.
     blocks_ = reinterpret_cast<BlockStoreApp*>(machine()->GetApp("blockstore"))
-        ->blocks_;
+              ->blocks_;
 
     // Get ptr to paxos leader (maybe).
     if (machine()->machine_id() == local_paxos_leader_) {
       paxos_leader_ =
-          reinterpret_cast<Paxos2App*>(machine()->GetApp("paxos2"));
+        reinterpret_cast<Paxos2App*>(machine()->GetApp("paxos2"));
     }
 
     // Get reader of Paxos output (using closest paxos machine).
     batch_sequence_ =
-        new SequenceSource(
-            new RemoteLogSource<PairSequence>(machine(), local_paxos_leader_, "paxos2"));
+      new SequenceSource(
+      new RemoteLogSource<PairSequence>(machine(), local_paxos_leader_, "paxos2"));
 
     delay_time_ = 0.1;
     batch_cnt_ = 0;
-   
-    uint64 delayed_batch_cnt = delay_time_/0.005;
+
+    uint64 delayed_batch_cnt = delay_time_ / 0.005;
 
     // Okay, finally, start main loop!
     going_ = true;
@@ -136,7 +136,7 @@ class BlockLogApp : public App {
       // [Peizhen] Remaster logic in BlockLogApp PART
       /* 1) Add wait map
        * 2) create Remaster action and append it to remote replicas if that remote replica is not ongoing
-       * 3) In remaster_ack rpc, 
+       * 3) In remaster_ack rpc,
        */
       int count = queue_.Size();
       if (count != 0) {
@@ -144,7 +144,7 @@ class BlockLogApp : public App {
         for (int i = 0; i < count; i++) {
           Action* a = NULL;
           set<string> remotes_;
-          set<uint64> reps_;
+          map<uint64, set<string>> reps_;
           queue_.Pop(&a);
 
           uint64 action_uid = machine()->GetGUID();
@@ -153,100 +153,112 @@ class BlockLogApp : public App {
           for (int j = 0; j < a->readset_size(); j++) {
             if (config_->LookupReplicaByDir(a->readset(j)) != replica_) {
               remotes_.insert(a->readset(j));
-              reps_.insert(config_->LookupReplicaByDir(a->readset(j)));
             }
           }
           for (int j = 0; j < a->writeset_size(); j++) {
             if (config_->LookupReplicaByDir(a->writeset(j)) != replica_) {
               remotes_.insert(a->writeset(j));
-              reps_.insert(config_->LookupReplicaByDir(a->writeset(j)));
+            }
+          }
+
+          if (remotes_.size() == 0) {
+            a->set_version_offset(i);
+            a->set_origin(replica_);
+            batch.mutable_entries()->AddAllocated(a);
+          } 
+
+          multi_wait_map_[remotes_].add_entries()->CopyFrom(*a);
+          
+          for (auto it = remotes_.begin(); it != remotes_.end(); ++it) {
+            if (ongoing_.find(*it) != ongoing_.end()) {
+              remotes_.erase(it);
+            } else {
+              uid_to_dirs_[action_uid].insert(*it);
             }
           }
 
           if (remotes_.size() != 0) {
             for (auto it = remotes_.begin(); it != remotes_.end(); ++it) {
-              if (ongoing_.find(*it) == ongoing_.end()) {
-                Header* header = new Header();
-                header->set_from(machine()->machine_id());
-                // send to remote_replica_id * (total_machines / replica_count), which is the head machine of that replica
-                header->set_to(config_->LookupReplicaByDir(*it) * (machine()->config().size() / replica_count));
-                header->set_type(Header::RPC);
-                header->set_app(name());
-                header->set_rpc("APPEND");
-                a->set_remaster(true);
-                a->set_remaster_origin(replica_);
-                a->add_remaster_dirs()->CopyFrom(*it);
-                machine()->SendMessage(header, new MessageBuffer(*a));
-                ongoing_.insert(*it);
-                uid_to_dir_[action_uid] = a->remaster_dir;
-              }
+              reps_[config_->LookupReplicaByDir(*it)].insert(*it);
             }
-            multi_wait_map_[remotes_].add_entries()->CopyFrom(*a);
-          } else {
-            a->set_version_offset(i);
-            a->set_origin(replica_);
-            batch.mutable_entries()->AddAllocated(a);
-          }    
-        }
 
-        
-  
-
-
-
-
-
-
-      /*
-      batch_cnt_++;
-      // Create batch (iff there are any pending requests).
-      int count = queue_.Size();
-      if (count != 0 || delay_txns_.find(batch_cnt_) != delay_txns_.end()) {
-        ActionBatch batch;
-        uint64 actual_offset = 0;
-        // Handle new actions
-        for (int i = 0; i < count; i++) {
-          Action* a = NULL;
-          queue_.Pop(&a);
-          // Delay multi-replicas action, and add a fake action
-          if (a->single_replica() == false && a->new_generated() == false) {
-            uint64 active_batch_cnt = batch_cnt_ + delayed_batch_cnt;
-
-            delay_txns_[active_batch_cnt].add_entries()->CopyFrom(*a);
-  
-            // Add a fake multi-replicas action
-	          a->set_origin(replica_);
-            a->set_fake_action(true);
-            batch.mutable_entries()->AddAllocated(a);
-
-          } else {
-            a->set_version_offset(actual_offset++);
-	          a->set_origin(replica_);
-            batch.mutable_entries()->AddAllocated(a);
+            for (auto it = reps_.begin(); it != reps_.end(); ++it) {
+              Header* header = new Header();
+              header->set_from(machine()->machine_id());
+                // send to remote_replica_id * (total_machines / replica_count), which is the head machine of that replica
+              header->set_to(it->first * (machine()->config().size() / replica_count));
+              header->set_type(Header::RPC);
+              header->set_app(name());
+              header->set_rpc("APPEND");
+              a->set_remaster(true);
+              a->set_remaster_origin(replica_);
+              for (auto iter = it->second.begin(); iter != it->second.end(); iter++) {
+                a->add_remaster_dirs()->CopyFrom(*iter);
+                ongoing_.insert(*iter);
+              }
+              machine()->SendMessage(header, new MessageBuffer(*a));
+            }
           }
         }
 
-        // Add the old multi-replicas actions into batch
-        if (delay_txns_.find(batch_cnt_) != delay_txns_.end()) {
-          ActionBatch actions = delay_txns_[batch_cnt_];
-          for (int i = 0; i < actions.entries_size(); i++) {
-            Action* a = new Action();
-            a->CopyFrom(actions.entries(i));
-            a->set_version_offset(actual_offset++);
-	          a->set_origin(replica_);
-            batch.mutable_entries()->AddAllocated(a);
+
+
+
+
+
+
+
+
+        /*
+        batch_cnt_++;
+        // Create batch (iff there are any pending requests).
+        int count = queue_.Size();
+        if (count != 0 || delay_txns_.find(batch_cnt_) != delay_txns_.end()) {
+          ActionBatch batch;
+          uint64 actual_offset = 0;
+          // Handle new actions
+          for (int i = 0; i < count; i++) {
+            Action* a = NULL;
+            queue_.Pop(&a);
+            // Delay multi-replicas action, and add a fake action
+            if (a->single_replica() == false && a->new_generated() == false) {
+              uint64 active_batch_cnt = batch_cnt_ + delayed_batch_cnt;
+
+              delay_txns_[active_batch_cnt].add_entries()->CopyFrom(*a);
+
+              // Add a fake multi-replicas action
+              a->set_origin(replica_);
+              a->set_fake_action(true);
+              batch.mutable_entries()->AddAllocated(a);
+
+            } else {
+              a->set_version_offset(actual_offset++);
+              a->set_origin(replica_);
+              batch.mutable_entries()->AddAllocated(a);
+            }
           }
- 
-          delay_txns_.erase(batch_cnt_);
-        }
-      */
-	// [Bo] Till now do the following stuffs
-	// 1) add single replica transcation to the new batch
-	// 2) delay current multiple transcations replica to the delay queue, however
-	// add a fake action to the batches 
-	// 3) pop out the previous delay queue
-	// it seems that each replica will only the transcation related to it
-	// either single replica txn or multiple replica txn
+
+          // Add the old multi-replicas actions into batch
+          if (delay_txns_.find(batch_cnt_) != delay_txns_.end()) {
+            ActionBatch actions = delay_txns_[batch_cnt_];
+            for (int i = 0; i < actions.entries_size(); i++) {
+              Action* a = new Action();
+              a->CopyFrom(actions.entries(i));
+              a->set_version_offset(actual_offset++);
+              a->set_origin(replica_);
+              batch.mutable_entries()->AddAllocated(a);
+            }
+
+            delay_txns_.erase(batch_cnt_);
+          }
+        */
+        // [Bo] Till now do the following stuffs
+        // 1) add single replica transcation to the new batch
+        // 2) delay current multiple transcations replica to the delay queue, however
+        // add a fake action to the batches
+        // 3) pop out the previous delay queue
+        // it seems that each replica will only the transcation related to it
+        // either single replica txn or multiple replica txn
 
         // Avoid multiple allocation.
         string* block = new string();
@@ -256,7 +268,7 @@ class BlockLogApp : public App {
         uint64 block_id = machine()->GetGUID() * 2 + (block->size() > 1024 ? 1 : 0);
 
         // Send batch to block stores.
-	// [Bo] send to all replicas
+        // [Bo] send to all replicas
         for (uint64 i = 0; i < config_->config().block_replication_factor();
              i++) {
           Header* header = new Header();
@@ -318,41 +330,43 @@ class BlockLogApp : public App {
     }
 
 
-    
+
     /* [Peizhen] add REMASTER_ACK rpc call & REROUTE rpc call
      * Do things: modify map & let go some waiting actions, modify ongoing, change configuration file
      */
     if (header->rpc() == "REMASTER_ACK") {
-      uint64 remote_one = header->misc_int(0);
-      ongoing_.erase(remote_one);
 
-      // Change configuration
+      // Change configuration & ongoing
       StringSequence seq;
       seq.ParseFromArray((*message)[0].data(), (*message)[0].size());
       for (int i = 0; i < seq.strs_size(); i++) {
         // change dir's master to current replica
         config_->ChangeMaster(seq.strs(i), replica_);
+        ongoing_.erase(seq.strs(i));
       }
 
       // modify map
       // Note that 1) keys are immutable; 2) alloc actions rather than shallow copy
-      for (auto it = multi_wait_map_.begin(); it != multi_wait_map_.end(); it++) {
-        if ((it->first).find(remote_one) != (it->first).end() && (it->first).size() == 1) {
-          // release all actions in this key
-          for (int i = 0; i < it->second.entries_size(); i++) {
-            Action* action = new Action();
-            action->CopyFrom(it->second.entries(i));
-            queue_.Push(action);
+      for (int i = 0; i < seq.strs_size(); i++) {
+        string remote_one = seq.strs(i);
+        for (auto it = multi_wait_map_.begin(); it != multi_wait_map_.end(); it++) {
+          if ((it->first).find(remote_one) != (it->first).end() && (it->first).size() == 1) {
+            // release all actions in this key
+            for (int i = 0; i < it->second.entries_size(); i++) {
+              Action* action = new Action();
+              action->CopyFrom(it->second.entries(i));
+              queue_.Push(action);
+            }
+            multi_wait_map_.erase(it);
+          } else if ((it->first).find(remote_one) != (it->first).end() && (it->first).size() > 1) {
+            // modify keys (copy, modify, insert, delete)
+            set<uint64> ptr(it->first);
+            ptr.erase(remote_one);
+            for (int i = 0; i < it->second.entries_size(); i++) {
+              multi_wait_map_[ptr].mutable_entries()->AddAllocated(it->second.entries(i));
+            }
+            multi_wait_map_.erase(it);
           }
-          multi_wait_map_.erase(it);
-        } else if ((it->first).find(remote_one) != (it->first).end() && (it->first).size() > 1) {
-          // modify keys (copy, modify, insert, delete)
-          set<uint64> ptr(it->first);
-          ptr.erase(remote_one);
-          for (int i = 0; i < it->second.entries_size(); i++) {
-            multi_wait_map_[ptr].mutable_entries()->AddAllocated(it->second.entries(i));
-          }
-          multi_wait_map_.erase(it);
         }
       }
 
@@ -385,8 +399,8 @@ class BlockLogApp : public App {
       a->set_origin(replica_);
       queue_.Push(a);
     } else if (header->rpc() == "BATCH") {
-      // [Bo] If receive a BATCH of actions 
-   
+      // [Bo] If receive a BATCH of actions
+
       // Write batch block to local block store.
       uint64 block_id = header->misc_int(0);
       uint64 batch_size = header->misc_int(1);
@@ -397,7 +411,7 @@ class BlockLogApp : public App {
       uint64 message_from_ = header->from();
 
       //  If (This batch come from this replica) → send SUBMIT to the Sequencer(LogApp) on the master node of the local paxos participants
-      //  [Bo] note that it will just send header information to the local Paxos leader 
+      //  [Bo] note that it will just send header information to the local Paxos leader
       if (config_->LookupReplica(message_from_) == replica_) {
         Header* header = new Header();
         header->set_from(machine()->machine_id());
@@ -414,8 +428,8 @@ class BlockLogApp : public App {
       map<uint64, ActionBatch> subbatches;
       for (int i = 0; i < batch.entries_size(); i++) {
         set<uint64> recipients;
-        
-	      // [Bo] if this is fake action, don't push it to the subbatch 
+
+        // [Bo] if this is fake action, don't push it to the subbatch
         if (batch.entries(i).fake_action() == true) {
           continue;
         }
@@ -457,7 +471,7 @@ class BlockLogApp : public App {
         machine()->SendMessage(header, new MessageBuffer(subbatches[*it]));
       }
 
-      // Forward "fake multi-replica action" to the head node 
+      // Forward "fake multi-replica action" to the head node
       // [Bo] if the batch message is not sent by the local replica
       // only the fake actions that in the outside batches may contain the txns
       // that correlate to this replica, others are just the origin's mastered txns
@@ -468,8 +482,8 @@ class BlockLogApp : public App {
           if (batch.entries(i).fake_action() == true) {
             for (int j = 0; j < batch.entries(i).involved_replicas_size(); j++) {
               if (batch.entries(i).involved_replicas(j) == replica_) {
-                 fake_action_batch.add_entries()->CopyFrom(batch.entries(i));
-                 break;
+                fake_action_batch.add_entries()->CopyFrom(batch.entries(i));
+                break;
               }
             }
           }
@@ -485,17 +499,17 @@ class BlockLogApp : public App {
         header->add_misc_int(block_id);
         machine()->SendMessage(header, new MessageBuffer(fake_action_batch));
       }
-      
+
 
     } else if (header->rpc() == "SUBMIT") {
-			// [Bo] head node of this replica receive "SUBMIT" messages, need to determine the order of the txns, append the txns id to paxos_leader to determine its global order
+      // [Bo] head node of this replica receive "SUBMIT" messages, need to determine the order of the txns, append the txns id to paxos_leader to determine its global order
 
       uint64 block_id = header->misc_int(0);
 
       uint64 count = header->misc_int(1);
       paxos_leader_->Append(block_id, count);
     } else if (header->rpc() == "SUBBATCH") {
-			// [Bo] specific partition receive the action related to its own data, append it for scheduler to read
+      // [Bo] specific partition receive the action related to its own data, append it for scheduler to read
       uint64 block_id = header->misc_int(0);
       ActionBatch* batch = new ActionBatch();
       batch->ParseFromArray((*message)[0].data(), (*message)[0].size());
@@ -504,10 +518,10 @@ class BlockLogApp : public App {
       uint64 block_id = header->misc_int(0);
       ActionBatch* batch = new ActionBatch();
       batch->ParseFromArray((*message)[0].data(), (*message)[0].size());
-			// [Bo] for the replica that related to the specific batch of actions, it need to know the relative order of these actions 
+      // [Bo] for the replica that related to the specific batch of actions, it need to know the relative order of these actions
       fakebatches_.Put(block_id, batch);
     } else if (header->rpc() == "APPEND_MULTIREPLICA_ACTIONS") {
-			// [Bo] this part is for paxos, check paxos.cc and paxos.h, coming back when those two files have been analyzed
+      // [Bo] this part is for paxos, check paxos.cc and paxos.h, coming back when those two files have been analyzed
       MessageBuffer* m = NULL;
       PairSequence sequence;
 
@@ -519,7 +533,7 @@ class BlockLogApp : public App {
       ActionBatch* subbatch_ = NULL;
       Action* new_action;
 
-      for (int i = 0; i < sequence.pairs_size();i++) {
+      for (int i = 0; i < sequence.pairs_size(); i++) {
         uint64 subbatch_id_ = sequence.pairs(i).first();
 
         bool got_it;
@@ -530,14 +544,14 @@ class BlockLogApp : public App {
         if (subbatch_->entries_size() == 0) {
           continue;
         }
-        
-        int subbatch_size = subbatch_->entries_size();  
+
+        int subbatch_size = subbatch_->entries_size();
         for (int j = 0; j < subbatch_size / 2; j++) {
-          subbatch_->mutable_entries()->SwapElements(j, subbatch_->entries_size()-1-j);
+          subbatch_->mutable_entries()->SwapElements(j, subbatch_->entries_size() - 1 - j);
         }
-        
+
         for (int j = 0; j < subbatch_size; j++) {
-          new_action = subbatch_->mutable_entries()->ReleaseLast();                 
+          new_action = subbatch_->mutable_entries()->ReleaseLast();
           new_action->set_fake_action(false);
           new_action->clear_client_machine();
           new_action->clear_client_channel();
@@ -559,7 +573,7 @@ class BlockLogApp : public App {
       Scalar s;
       s.ParseFromArray((*message)[0].data(), (*message)[0].size());
       h->set_ack_counter(FromScalar<uint64>(s));
-      machine()->SendMessage(h, new MessageBuffer());   
+      machine()->SendMessage(h, new MessageBuffer());
 
     } else {
       LOG(FATAL) << "unknown RPC type: " << header->rpc();
@@ -570,7 +584,7 @@ class BlockLogApp : public App {
     return new ActionSource(this);
   }
 
- private:
+private:
   // True iff main thread SHOULD run.
   std::atomic<bool> go_;
 
@@ -622,7 +636,7 @@ class BlockLogApp : public App {
   // history rerouted action uid
   set<uint64> history_reroute_;
   // add mapping from action_uid to remaster_dir
-  map<uint64, string> uid_to_dir_;
+  map<uint64, set<string>> uid_to_dirs_;
 
 
 
@@ -631,7 +645,7 @@ class BlockLogApp : public App {
 
   friend class ActionSource;
   class ActionSource : public Source<Action*> {
-   public:
+  public:
     virtual ~ActionSource() {}
     virtual bool Get(Action** a) {
       while (true) {
@@ -672,8 +686,8 @@ class BlockLogApp : public App {
 //LOG(ERROR) <<"*********Okay, got a non-empty subbatch! Reverse the order of elements.";
               for (int i = 0; i < subbatch_->entries_size() / 2; i++) {
                 subbatch_->mutable_entries()->SwapElements(
-                    i,
-                    subbatch_->entries_size()-1-i);
+                  i,
+                  subbatch_->entries_size() - 1 - i);
               }
               // Now we are ready to start returning actions from this subbatch.
               break;
@@ -702,7 +716,7 @@ class BlockLogApp : public App {
       return true;
     }
 
-   private:
+  private:
     friend class BlockLogApp;
     ActionSource(BlockLogApp* log)
       : log_(log), subbatch_id_(0), subbatch_(NULL) {
