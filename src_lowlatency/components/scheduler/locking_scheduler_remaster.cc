@@ -48,6 +48,10 @@ void LockingScheduler::MainLoopBody() {
 			config_->ChangeMaster(action->remaster_dir, action->remaster_origin);
 			completed_.Push(&action);
 			// [Bo] send the remaster_ack message to blocklog app
+			StringSequence seq;
+			for (int i = 0; i < action->remaster_dirs_size(); i++) {
+				seq.add_remaster_dirs()->CopyFrom(action->remaster_dirs(i));
+			}
 			Header* header = new Header();
 			header->set_from(machine()->machine_id());
 			header->set_to(action->remaster_origin);
@@ -55,7 +59,7 @@ void LockingScheduler::MainLoopBody() {
 			header->set_app("BlockLogApp");
 			header->set_rpc("REMASTER_ACK");
 			header->add_misc_int(replica_);
-			machine()->SendMessage(header, new MessageBuffer())
+			machine()->SendMessage(header, new MessageBuffer(seq))
 		} else {
 
 			// Before Acquiring Lock, first check all the dir in read/write size to find out whether all of them are ordered (by checking action->origin) and mastered (by checking master_ map) by the same replica

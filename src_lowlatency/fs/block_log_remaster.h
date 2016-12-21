@@ -143,20 +143,23 @@ class BlockLogApp : public App {
         ActionBatch batch;
         for (int i = 0; i < count; i++) {
           Action* a = NULL;
-          set<uint64> remotes_;
+          set<string> remotes_;
+          set<uint64> reps_;
           queue_.Pop(&a);
 
           uint64 action_uid = machine()->GetGUID();
           a->set_uid(action_uid);
 
-          for (int j = 0; j < a.readset_size(); j++) {
-            if (config_->LookupReplicaByDir(a.readset(j)) != replica_) {
-              remotes_.insert(config_->LookupReplicaByDir(a.readset(j)));
+          for (int j = 0; j < a->readset_size(); j++) {
+            if (config_->LookupReplicaByDir(a->readset(j)) != replica_) {
+              remotes_.insert(a->readset(j));
+              reps_.insert(config_->LookupReplicaByDir(a->readset(j)));
             }
           }
-          for (int j = 0; j < a.writeset_size(); j++) {
-            if (config_->LookupReplicaByDir(a.writeset(j)) != replica_) {
-              remotes_.insert(config_->LookupReplicaByDir(a.writeset(j)));
+          for (int j = 0; j < a->writeset_size(); j++) {
+            if (config_->LookupReplicaByDir(a->writeset(j)) != replica_) {
+              remotes_.insert(a->writeset(j));
+              reps_.insert(config_->LookupReplicaByDir(a->writeset(j)));
             }
           }
 
@@ -166,14 +169,16 @@ class BlockLogApp : public App {
                 Header* header = new Header();
                 header->set_from(machine()->machine_id());
                 // send to remote_replica_id * (total_machines / replica_count), which is the head machine of that replica
-                header->set_to((*it) * (machine()->config().size() / replica_count));
+                header->set_to(config_->LookupReplicaByDir(*it) * (machine()->config().size() / replica_count));
                 header->set_type(Header::RPC);
                 header->set_app(name());
                 header->set_rpc("APPEND");
                 a->set_remaster(true);
                 a->set_remaster_origin(replica_);
+                a->add_remaster_dirs()->CopyFrom(*it);
                 machine()->SendMessage(header, new MessageBuffer(*a));
                 ongoing_.insert(*it);
+                uid_to_dir_[action_uid] = a->remaster_dir;
               }
             }
             multi_wait_map_[remotes_].add_entries()->CopyFrom(*a);
@@ -611,11 +616,15 @@ class BlockLogApp : public App {
 
   // [Peizhen]
   // store action_batches with its corresponding remaster requirement, i.e. <2,4,5> -> batch1; <3,6> -> batch2
-  map<set<uint64>, ActionBatch> multi_wait_map_;
+  map<set<string>, ActionBatch> multi_wait_map_;
   // store all ongoing remote replicas that are moving to this replica
-  set<uint64> ongoing_;
+  set<string> ongoing_;
   // history rerouted action uid
   set<uint64> history_reroute_;
+  // add mapping from action_uid to remaster_dir
+  map<uint64, string> uid_to_dir_;
+
+
 
   // fake multi-replicas actions batch received.
   AtomicMap<uint64, ActionBatch*> fakebatches_;
