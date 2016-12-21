@@ -45,11 +45,14 @@ void LockingScheduler::MainLoopBody() {
 		if(action->remaster == true) {
 			running_action_count_++;
 			// TODO: figure out where to find the dir and master information
-			config_->ChangeMaster(action->remaster_dir, action->remaster_origin);
 			completed_.Push(&action);
 			// [Bo] send the remaster_ack message to blocklog app
 			StringSequence seq;
 			for (int i = 0; i < action->remaster_dirs_size(); i++) {
+<<<<<<< Updated upstream
+=======
+				config_->ChangeMaster(action->remaster_dirs(i), action->remaster_origin);
+>>>>>>> Stashed changes
 				seq.add_strs()->CopyFrom(action->remaster_dirs(i));
 			}
 			Header* header = new Header();
