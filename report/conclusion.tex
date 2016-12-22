@@ -1,2 +1,4 @@
 \section{conclusion}
-In this project, we
+Highly scalable geo-replicated file system has became an important nowadays, as the web applications become more and more popular. Previous work applied single-node or shared-disk method to manage the metadata layer of the file system, which inherently makes the file system not scalable enough to handle large number of small files with large metadata store. CalvinFS is using Calvin to help manage the metadata layer, which introducing a non-negligible high latency. 
+
+Our project proposed a novel adaptive remastering protocol to fundamentally illuminate the latency because of applying Paxos among different geo-replicas, which serves as a first step towards learning-based adaptive remastering protocol to deal with the low-latency design of geo-distributed file system.
