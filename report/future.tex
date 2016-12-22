@@ -2,6 +2,13 @@
 Figuring out how to do the remastering operation itself is just the first step, we also need to figure out when and where to do it. This requires designing a \textbf{deadlock resolution strategy} to enable arbitrary direction of remastering,  a \textbf{profiling tools} to capture the file access pattern and a \textbf{learning algorithm} to discover underlying correlation between different files. We plan to keep track of this project and work with Kun to finish this part afterwards.
 
 \subsection{Deadlock resolution}
+Our current protocol provide a deadlock free method by requiring remastering all the related files and directories to the replica that has the lowest replica id among all the involving replicas. This method can solve deadlock for a while, however, will make the replica with the lowest id eventually become the master of all the files and directories, which make itself again a bottleneck of throughput. In this case, our system will also suffer from the unscalability problem. One tentative solution is to redistribute the master of each file or directory periodically. In this way, we can reduce the burden of the lower-numbered replica. However, this is still not good. What is the proper frequency of this redistribution and how can we determine the new-master of each file and directory are all unsolved problems.
 
 \subsection{Profiling and learning}
+Current remastering operation will be triggered every time there is a distributed transaction. Even if we can solve the deadlock resolution problem in a proper way, this strategy may not a wise choice. as we cannot guarantee some specific set of files are always processed together by just observing one time binding of these set of files. Instead, we can do a detailed profiling of the files and directories access pattern, and do accordingly remastering based on a learning algorithm to determine when and where shall we remaster a specific file or directory. 
+
+\subsection{Future work}
+Own project is certainly a first step towards this goal, which prove that the runtime remastering can be achieved in a low-latency manner. Next step, we need to first turn to some existing database to do static profiling first to find the pattern within that dataset. After getting a sense of data access pattern of real geo-distributed pattern, we can turn to design a runtime profiler and corresponding learning algorithm to help us make the remaster decision.
+
+
 
