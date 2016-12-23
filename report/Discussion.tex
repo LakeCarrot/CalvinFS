@@ -1,13 +1,16 @@
 \section{Discussion}
-In this section, we will discuss whether our protocol works under more tricky cases.
+Section 3 explains the basic components of the system as well as the coordination logic between components. Now, we will explore some special cases and discuss how our remaster protocol work under these cases.
+
+
 \subsection{Concurrent Remastering}
-In previous section, we discussed the simplest case - a single remaster operation. Here, we will consider what if there are multiple concurrent remastering operations in the system. 
-We have reroute mechanism to avoid falsely sent actions being ignored.
+Prvious section does not explain how does remaster protocol works when concurrent multi-replica transactions come. Hereby, we use an example to show. For instance, transaction T1 and transaction T2 are two different transactions. Among them, T1 is a multi-replica transaction which want to remaster a certain directory from replica R2 to R1. Transaction T2 is a local transaction of R2 which works on the same directory. When the T1 is received by R1, R1 will generate a Tr remaster transaction to append to R2. Then, if Tr is earlier then T2, then when T2 is ready to execute, R2 will realize that T2 is now mastered at R1. Therefore, according to our protocol, T2 will be rerouted to R1, and then it will be treated as a new local transaction to run at R1.
 
 \subsection{Overlapping Remaster operation}
-Only send remaster transaction once.
+When there are overlapping remaster operations, the simplest logic introduced in Section 3 will bring about redundant remaster transaction, which might affect the consistency among replicas, and as well reduce the resource efficiency by sending same message repeatedly.
+
+We add some supporting data structures to note down which set of replicas does this current transaction depends on, and once the BlockLog receive a remaster\_ack message, it will traverse the data structure and releases all transaction with key equals to 1. On the other hand, when new multi-replica operation appears, the BlockLog will analyze which set of replicas are not currently involving with remastering. And the remaster transaction will be sent to the replicas where there has no same operation before. 
+
+\subsection{View synchronization}
+As each multi-replica transaction will effectively incur a remaster transaction, which changes the globally shared mapping between directories and the master replica. We leverage the mechanism in original CalvinFS, which create subbatches based on the batch and distribute the subbatches to those involved machines. The remaster transaction will be added in the subbatch and distributed to all machines. Therefore, a final consistent view is guaranteed by \name{}. For those transactions sent during the configuration changing period, it will be revoked and rerouted based on the aforementioned mechanism.
 
 
-\subsection{Fail-over}
-Can we bibi something in this part?? optional
-feel heart lei, can not bibi anymore, just knee down to Abadi
